@@ -315,12 +315,26 @@ const toInt = v => { if (!v) return 0; const n = parseInt(String(v).replace(/,/g
 const getVal = (row, keys) => { for (const k of keys) { if (row[k] !== undefined && row[k] !== '') return row[k]; } return ''; };
 const dateStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
+// ✅ القائمة البيضاء: القيم المسموح الشغل عليها فقط
+function isAllowedStatusValue(v) {
+    const s = clean(v).toLowerCase();
+    return s === '' 
+        || s.startsWith('you need to enter a price') 
+        || s.startsWith('you need to enter stock');
+}
+
 function isProblemStatus(status, desc) {
     const s = clean(status).toLowerCase();
-    const d = clean(desc).toLowerCase();
-    if (s === 'archived') return true;
-    if (d.includes('authenticity') || d.includes('restricted') || d.includes('suspicion')) return true;
-    return false;
+    
+    // 1) الحالة نفسها مسموحة أو فاضية → مش مشكلة
+    if (isAllowedStatusValue(s)) return false;
+    
+    // 2) DISABLED بس الوصف بيقول "محتاج سعر/ستوك" أو فاضي
+    //    → ده منتج متصفر ولسه بتشتغل عليه (عشان الـ restock ما يبوظش)
+    if (s === 'disabled' && isAllowedStatusValue(desc)) return false;
+    
+    // 3) أي حاجة تانية = مشكلة → تستبعد
+    return true;
 }
 
 function isHoldStock(val) {
