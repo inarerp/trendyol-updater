@@ -1,925 +1,207 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trendyol Master Updater v7.1</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; }
-        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
-        .dropzone { border: 2px dashed #d1d5db; border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; }
-        .dropzone:hover { border-color: #6366f1; background: #f5f3ff; }
-        .dropzone.loaded { border-color: #10b981; background: #ecfdf5; }
-        .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
-        .btn-primary { background: #6366f1; color: white; }
-        .btn-primary:hover { background: #4f46e5; }
-        .btn-success { background: #10b981; color: white; }
-        .btn-success:hover { background: #059669; }
-        .btn-warning { background: #f59e0b; color: white; }
-        .btn-warning:hover { background: #d97706; }
-        .btn-danger { background: #ef4444; color: white; }
-        .btn-danger:hover { background: #dc2626; }
-        .btn-info { background: #0ea5e9; color: white; }
-        .btn-info:hover { background: #0284c7; }
-        .btn-outline { background: white; border: 1px solid #d1d5db; color: #374151; }
-        .btn-outline:hover { background: #f9fafb; }
-        .btn:disabled { background: #d1d5db; cursor: not-allowed; }
-        .btn-sm { padding: 5px 10px; font-size: 12px; }
-        .btn-active { background: #6366f1 !important; color: white !important; border-color: #6366f1 !important; }
-        table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        th { background: #f8fafc; padding: 8px; text-align: right; border-bottom: 2px solid #e2e8f0; position: sticky; top: 0; font-weight: 600; white-space: nowrap; }
-        td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
-        tr:hover { background: #f8fafc; }
-        .stat-box { text-align: center; padding: 12px; border-radius: 8px; background: #f8fafc; }
-        .stat-num { font-size: 22px; font-weight: 700; }
-        .stat-lbl { font-size: 10px; color: #6b7280; margin-top: 2px; }
-        .filter-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-        .filter-row label { font-size: 12px; font-weight: 600; min-width: 100px; color: #374151; }
-        .filter-row input, .filter-row select { padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; }
-        .filter-row input[type="number"] { width: 70px; }
-        .filter-row input[type="text"] { flex: 1; min-width: 180px; }
-        .supplier-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 4px; max-height: 150px; overflow-y: auto; padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; }
-        .supplier-item { display: flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 6px; border-radius: 4px; cursor: pointer; }
-        .supplier-item:hover { background: #f3f4f6; }
-        .supplier-item input { width: 14px; height: 14px; accent-color: #ef4444; }
-        .supplier-item.excluded { background: #fef2f2; }
-        .supplier-item.excluded span { color: #dc2626; text-decoration: line-through; }
-        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
-        .badge-new { background: #dbeafe; color: #1d4ed8; }
-        .badge-change { background: #fef3c7; color: #92400e; }
-        .badge-no-odoo { background: #fee2e2; color: #991b1b; }
-        .badge-same { background: #f1f5f9; color: #475569; }
-        .badge-hold { background: #fce7f3; color: #9d174d; }
-        .table-wrap { max-height: 450px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
-        .hidden { display: none; }
-        .qty-btns { display: flex; gap: 4px; flex-wrap: wrap; }
-        .qty-btns button { padding: 3px 8px; font-size: 11px; border: 1px solid #d1d5db; border-radius: 4px; background: white; cursor: pointer; }
-        .qty-btns button.active { background: #6366f1; color: white; border-color: #6366f1; }
-        .saved-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-        .saved-filter-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 16px; font-size: 11px; font-weight: 600; color: #4338ca; cursor: pointer; transition: all 0.15s; }
-        .saved-filter-chip:hover { background: #e0e7ff; }
-        .saved-filter-chip .del { color: #ef4444; font-weight: bold; margin-right: 2px; cursor: pointer; }
-        .saved-filter-chip.active { background: #6366f1; color: white; border-color: #6366f1; }
-        .quick-filters { display: flex; gap: 6px; flex-wrap: wrap; }
-        .quick-filters .btn { font-size: 11px; padding: 4px 10px; }
-        .dynamic-export { margin-top: 10px; padding: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تحديث المخزون</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<style>
+  body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f0f2f5}
+  .topnav{text-align:center;margin-bottom:12px;font-size:13px}
+  .topnav a{color:#4f46e5;font-weight:600;text-decoration:none;margin:0 6px}
+  .topnav .current{color:#64748b;font-weight:700;margin:0 6px}
+  .card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .dropzone{border:2px dashed #d1d5db;border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:.2s}
+  .dropzone:hover{border-color:#6366f1;background:#f5f3ff}
+  .dropzone.loaded{border-color:#10b981;background:#ecfdf5}
+  .btn{padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+  .btn-primary{background:#6366f1;color:#fff}.btn-primary:hover{background:#4f46e5}
+  .btn-success{background:#10b981;color:#fff}.btn-success:hover{background:#059669}
+  .btn-warning{background:#f59e0b;color:#fff}.btn-warning:hover{background:#d97706}
+  .btn-outline{background:#fff;border:1px solid #d1d5db;color:#374151}.btn-outline:hover{background:#f9fafb}
+  .btn-sm{padding:5px 10px;font-size:12px}
+  .btn-active{background:#6366f1 !important;color:#fff !important;border-color:#6366f1 !important}
+  .stat-box{text-align:center;padding:12px;border-radius:8px;background:#f8fafc}
+  .stat-num{font-size:22px;font-weight:700}
+  .stat-lbl{font-size:10px;color:#6b7280;margin-top:2px}
+  .filter-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  .filter-row label{font-size:12px;font-weight:600;min-width:100px;color:#374151}
+  .filter-row input[type="number"]{width:70px;border:1px solid #d1d5db;border-radius:4px;padding:5px 8px;font-size:12px}
+  .filter-row input[type="text"]{flex:1;min-width:180px;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:12px}
+  .supplier-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px;max-height:150px;overflow-y:auto;padding:8px;border:1px solid #e5e7eb;border-radius:6px}
+  .supplier-item{display:flex;align-items:center;gap:4px;font-size:12px;padding:3px 6px;border-radius:4px;cursor:pointer}
+  .supplier-item:hover{background:#f3f4f6}
+  .supplier-item input{width:14px;height:14px;accent-color:#ef4444}
+  .supplier-item.excluded{background:#fef2f2}
+  .supplier-item.excluded span{color:#dc2626;text-decoration:line-through}
+  .badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600}
+  .b-ok{background:#dcfce7;color:#166534}.b-short{background:#fef3c7;color:#92400e}
+  .b-none{background:#fee2e2;color:#991b1b}.b-unk{background:#f1f5f9;color:#475569}
+  .b-hold{background:#fce7f3;color:#9d174d}
+  .table-wrap{max-height:500px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{background:#f8fafc;padding:8px;text-align:right;border-bottom:2px solid #e2e8f0;position:sticky;top:0;font-weight:600;white-space:nowrap}
+  td{padding:6px 8px;border-bottom:1px solid #f1f5f9}
+  tr:hover{background:#f8fafc}
+  .hidden{display:none}
+  .qty-btns{display:flex;gap:4px;flex-wrap:wrap}
+  .qty-btns button{padding:3px 8px;font-size:11px;border:1px solid #d1d5db;border-radius:4px;background:#fff;cursor:pointer}
+  .qty-btns button.active{background:#6366f1;color:#fff;border-color:#6366f1}
+  .chip{padding:4px 10px;border:1px solid #d1d5db;border-radius:16px;font-size:11px;cursor:pointer;background:#fff}
+  .chip.active{background:#6366f1;color:#fff;border-color:#6366f1}
+  .saved-filters{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .saved-filter-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:16px;font-size:11px;font-weight:600;color:#4338ca;cursor:pointer}
+  .saved-filter-chip:hover{background:#e0e7ff}
+  .saved-filter-chip .del{color:#ef4444;font-weight:bold;margin-right:2px;cursor:pointer}
+  .saved-filter-chip.active{background:#6366f1;color:#fff;border-color:#6366f1}
+  .warn-box{margin-top:10px;padding:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:12px;color:#9a3412}
+  .info-box{margin-top:10px;padding:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px;color:#1e40af}
+  .quick-filters{display:flex;gap:6px;flex-wrap:wrap}
+  .quick-filters .btn{font-size:11px;padding:4px 10px}
+  .dynamic-export{margin-top:10px;padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px}
+</style>
 </head>
 <body>
 <div style="max-width:1200px;margin:0 auto;padding:16px;">
 
-    <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;margin-bottom:4px;">🚀 Trendyol Master Updater</h1> <div style="text-align:center;margin-bottom:10px;">   <a href="sales-check.html" style="color:#4f46e5;font-weight:600;font-size:13px;text-decoration:none;">🛒 أداة فحص المبيعات والموردين ←</a> </div>
-    <p style="text-align:center;font-size:13px;color:#64748b;margin-bottom:16px;">دمج ملفات ترينديول + أودو + الماستر → ملف واحد محدث</p>
+  <div class="topnav">
+    <span class="current">📦 تحديث المخزون</span> | <a href="sales-check.html">🛒 فحص المبيعات</a> | <a href="supplier-sync.html">🏬 مزامنة مورد</a>
+  </div>
 
-    <!-- Upload -->
-    <div class="card">
-        <h3 style="font-size:15px;font-weight:700;margin:0 0 12px;">📂 رفع الملفات</h3>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
-            <div class="dropzone" id="dz-master" onclick="document.getElementById('f-master').click()">
-                <input type="file" id="f-master" accept=".xlsx,.xls,.csv" style="display:none" onchange="loadFile(this,'master')">
-                <div style="font-size:24px;">📋</div>
-                <div style="font-weight:600;font-size:13px;margin:4px 0;">الماستر القديم</div>
-                <div id="st-master" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
-            </div>
-            <div class="dropzone" id="dz-trendyol" onclick="document.getElementById('f-trendyol').click()">
-                <input type="file" id="f-trendyol" accept=".xlsx,.xls,.csv" style="display:none" onchange="loadFile(this,'trendyol')">
-                <div style="font-size:24px;">🛒</div>
-                <div style="font-weight:600;font-size:13px;margin:4px 0;">ترينديول الجديد</div>
-                <div id="st-trendyol" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
-            </div>
-            <div class="dropzone" id="dz-odoo" onclick="document.getElementById('f-odoo').click()">
-                <input type="file" id="f-odoo" accept=".xlsx,.xls,.csv" style="display:none" onchange="loadFile(this,'odoo')">
-                <div style="font-size:24px;">📦</div>
-                <div style="font-weight:600;font-size:13px;margin:4px 0;">أودو (المخزون)</div>
-                <div id="st-odoo" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
-            </div>
-        </div>
-        <div style="text-align:center;margin-top:12px;">
-            <button class="btn btn-primary" id="btn-go" disabled onclick="process()">🔄 بدء الدمج</button>
-        </div>
+  <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;">📦 تحديث المخزون</h1>
+  <p style="text-align:center;font-size:13px;color:#64748b;margin-bottom:16px;">دمج ترينديول + أودو + الماستر → ملف تصدير الكميات</p>
+
+  <!-- ================= UPLOADS ================= -->
+  <div class="card">
+    <h3 style="font-size:15px;font-weight:700;margin:0 0 12px;">📂 رفع الملفات</h3>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+      <div class="dropzone" id="dz-master" onclick="document.getElementById('f-master').click()">
+        <input type="file" id="f-master" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'master')">
+        <div style="font-size:24px;">📋</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">الماستر (قاعدة البيانات)</div>
+        <div id="st-master" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
+      </div>
+      <div class="dropzone" id="dz-trendyol" onclick="document.getElementById('f-trendyol').click()">
+        <input type="file" id="f-trendyol" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'trendyol')">
+        <div style="font-size:24px;">🛒</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">ترينديول الجديد</div>
+        <div id="st-trendyol" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
+      </div>
+      <div class="dropzone" id="dz-odoo" onclick="document.getElementById('f-odoo').click()">
+        <input type="file" id="f-odoo" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'odoo')">
+        <div style="font-size:24px;">📦</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">مخزون أودو</div>
+        <div id="st-odoo" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
+      </div>
+      <div class="dropzone" id="dz-sales" onclick="document.getElementById('f-sales').click()">
+        <input type="file" id="f-sales" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'sales')">
+        <div style="font-size:24px;">🧾</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">مبيعات اليوم (اختياري)</div>
+        <div id="st-sales" style="font-size:11px;color:#6b7280;">لو فيه مبيعات بعد سحب أودو</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:14px;">
+      <button class="btn btn-primary" id="btn-go" disabled onclick="processAll()">🔄 معالجة الكل</button>
+      <p style="font-size:11px;color:#6b7280;margin-top:6px;">اختار الملفات الأول، وبعدين دوس معالجة مرة واحدة</p>
+    </div>
+    <div id="read-summary" class="info-box hidden"></div>
+    <div id="warnings" class="warn-box hidden"></div>
+  </div>
+
+  <!-- ================= SUMMARY ================= -->
+  <div class="card">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+      <div class="stat-box"><div class="stat-num" style="color:#6366f1" id="s-total">0</div><div class="stat-lbl">إجمالي (بعد الفلتر)</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#10b981" id="s-new">0</div><div class="stat-lbl">جديدة ⭐</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#ef4444" id="s-new-no-odoo">0</div><div class="stat-lbl">جديدة بدون أودو</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#f59e0b" id="s-changes">0</div><div class="stat-lbl">تغيرات كمية</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#8b5cf6" id="s-no-odoo">0</div><div class="stat-lbl">مش في أودو</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#ec4899" id="s-hold">0</div><div class="stat-lbl">منتجات الهولد 🔒</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#0ea5e9" id="s-sales">0</div><div class="stat-lbl">اتخصم منها مبيعات اليوم</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#64748b" id="s-excluded">0</div><div class="stat-lbl">مستبعدة</div></div>
+    </div>
+  </div>
+
+  <!-- ================= FILTERS ================= -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h3 style="font-size:14px;font-weight:700;margin:0;">🔍 الفلاتر</h3>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-outline btn-sm" onclick="saveFilterGroup()">💾 حفظ الفلتر</button>
+        <button class="btn btn-outline btn-sm" style="border-color:#ef4444;color:#ef4444" onclick="resetAll()">↻ إعادة تعيين كل الفلاتر</button>
+      </div>
     </div>
 
-    <!-- Results -->
-    <div id="sec-results" class="hidden">
+    <div class="saved-filters" id="saved-filters-list"></div>
 
-        <!-- Summary -->
-        <div class="card">
-            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;">
-                <div class="stat-box"><div class="stat-num" style="color:#6366f1;" id="s-total">0</div><div class="stat-lbl">إجمالي (بعد الفلتر)</div></div>
-                <div class="stat-box"><div class="stat-num" style="color:#10b981;" id="s-new">0</div><div class="stat-lbl">جديدة ⭐</div></div>
-                <div class="stat-box"><div class="stat-num" style="color:#ef4444;" id="s-new-no-odoo">0</div><div class="stat-lbl">جديدة بدون أودو</div></div>
-                <div class="stat-box"><div class="stat-num" style="color:#f59e0b;" id="s-changes">0</div><div class="stat-lbl">تغيرات كمية</div></div>
-                <div class="stat-box"><div class="stat-num" style="color:#8b5cf6;" id="s-no-odoo">0</div><div class="stat-lbl">مش في أودو</div></div>
-                <div class="stat-box"><div class="stat-num" style="color:#ec4899;" id="s-hold">0</div><div class="stat-lbl">منتجات الهولد 🔒</div></div>
-                <div class="stat-box"><div class="stat-num" style="color:#64748b;" id="s-excluded">0</div><div class="stat-lbl">مستبعدة</div></div>
-            </div>
-        </div>
-
-        <!-- Filters -->
-        <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                <h3 style="font-size:14px;font-weight:700;margin:0;">🔍 الفلاتر</h3>
-                <div style="display:flex;gap:6px;">
-                    <button class="btn btn-outline btn-sm" onclick="saveFilterGroup()">💾 حفظ الفلتر</button>
-                    <button class="btn btn-danger btn-sm" onclick="resetAll()">↻ إعادة تعيين كل الفلاتر</button>
-                </div>
-            </div>
-
-            <!-- Saved Filters -->
-            <div class="saved-filters" id="saved-filters-list"></div>
-
-            <!-- Quick Filters -->
-            <div class="filter-row" style="margin-top:10px;">
-                <label>فلاتر سريعة:</label>
-                <div class="quick-filters">
-                    <button class="btn btn-outline btn-sm" onclick="quickFilter('zeroing',this)">🔴 محتاجة تصفير</button>
-                    <button class="btn btn-outline btn-sm" onclick="quickFilter('restock',this)">🟢 في أودو + ترينديول صفر</button>
-                    <button class="btn btn-outline btn-sm" onclick="quickFilter('changes',this)">🟡 تغييرات كمية</button>
-                    <button class="btn btn-outline btn-sm" onclick="quickFilter('new',this)">🆕 منتجات جديدة</button>
-                    <button class="btn btn-outline btn-sm" onclick="quickFilter('new-no-odoo',this)">🆕❌ جديدة بدون أودو</button>
-                    <button class="btn btn-outline btn-sm" onclick="quickFilter('hold',this)">🔒 منتجات الهولد</button>
-                </div>
-            </div>
-
-            <!-- Search -->
-            <div class="filter-row">
-                <label>بحث عام:</label>
-                <input type="text" id="flt-search" placeholder="باركود، اسم، براند، مورد..." oninput="applyFilters()">
-            </div>
-
-            <!-- Exclude problems -->
-            <div class="filter-row">
-                <label>استبعاد:</label>
-                <label style="display:flex;align-items:center;gap:4px;font-weight:400;min-width:auto;">
-                    <input type="checkbox" id="flt-exclude-problems" checked onchange="applyFilters()" style="width:15px;height:15px;accent-color:#ef4444;">
-                    استبعاد الأرشيف وحالات المشاكل
-                </label>
-            </div>
-
-            <!-- Suppliers -->
-            <div class="filter-row" style="align-items:flex-start;">
-                <label style="margin-top:6px;">استبعاد موردين:</label>
-                <div class="supplier-grid" id="supplier-grid">
-                    <span style="font-size:11px;color:#9ca3af;">ارفع الملفات أولاً</span>
-                </div>
-            </div>
-
-            <!-- Odoo Qty Filter -->
-            <div class="filter-row">
-                <label>كمية أودو:</label>
-                <div class="qty-btns" id="odoo-btns">
-                    <button onclick="setOdooFilter('all',this)" class="active">الكل</button>
-                    <button onclick="setOdooFilter('in-odoo',this)">موجود في أودو</button>
-                    <button onclick="setOdooFilter('not-in-odoo',this)">مش موجود في أودو</button>
-                    <button onclick="setOdooFilter('range',this)">من-إلى</button>
-                </div>
-                <input type="number" id="flt-odoo-min" placeholder="من" class="hidden" oninput="applyFilters()">
-                <input type="number" id="flt-odoo-max" placeholder="إلى" class="hidden" oninput="applyFilters()">
-            </div>
-
-            <!-- Trendyol Qty Filter -->
-            <div class="filter-row">
-                <label>كمية ترينديول:</label>
-                <div class="qty-btns" id="ty-btns">
-                    <button onclick="setTyFilter('all',this)" class="active">الكل</button>
-                    <button onclick="setTyFilter('zero',this)">= 0</button>
-                    <button onclick="setTyFilter('gt0',this)">> 0</button>
-                    <button onclick="setTyFilter('range',this)">من-إلى</button>
-                </div>
-                <input type="number" id="flt-ty-min" placeholder="من" class="hidden" oninput="applyFilters()">
-                <input type="number" id="flt-ty-max" placeholder="إلى" class="hidden" oninput="applyFilters()">
-            </div>
-
-            <!-- New Products Filter -->
-            <div class="filter-row">
-                <label>المنتجات:</label>
-                <div class="qty-btns" id="new-btns">
-                    <button onclick="setNewFilter('all',this)" class="active">الكل</button>
-                    <button onclick="setNewFilter('new-only',this)">الجديدة فقط</button>
-                    <button onclick="setNewFilter('old-only',this)">القديمة فقط</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Hold Stock Incoming Report -->
-        <div class="card hidden" id="sec-hold-report">
-            <h3 style="font-size:14px;font-weight:700;margin:0 0 10px;color:#ec4899;">⚠️ تنبيه: منتجات عليها Hold ودخل لها مخزون جديد في ترينديول</h3>
-            <div class="table-wrap" style="max-height:250px;">
-                <table>
-                    <thead><tr><th>الباركود</th><th>الاسم</th><th>المورد</th><th>الكمية الجديدة على ترينديول</th></tr></thead>
-                    <tbody id="tbody-hold"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Table -->
-        <div class="card">
-            <h3 style="font-size:14px;font-weight:700;margin:0 0 10px;">📋 المنتجات (نتيجة الفلاتر)</h3>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr>
-                        <th>الباركود</th><th>الاسم</th><th>المورد</th><th>باركود أودو</th>
-                        <th>كمية ترينديول</th><th>كمية أودو</th><th>عدد القطع</th><th>الكمية الجديدة</th><th>الحالة</th>
-                    </tr></thead>
-                    <tbody id="tbody"></tbody>
-                </table>
-            </div>
-            <p id="tbl-info" style="font-size:11px;color:#6b7280;margin-top:4px;"></p>
-        </div>
-
-        <!-- Export -->
-        <div class="card">
-            <h3 style="font-size:14px;font-weight:700;margin:0 0 10px;">📥 التصدير</h3>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                <button class="btn btn-primary" onclick="exportMaster()">📋 الماستر المحدث - كامل (<span id="c-master">0</span>)</button>
-                <button class="btn btn-success" onclick="exportNew()">⭐ المنتجات الجديدة (<span id="c-new">0</span>)</button>
-                <button class="btn btn-warning" onclick="exportTrendyol()">🛒 ملف ترينديول للتصدير (<span id="c-ty">0</span>)</button>
-            </div>
-
-            <!-- Dynamic Export based on active quick filter -->
-            <div id="dynamic-export" class="dynamic-export hidden">
-                <div style="font-size:12px;font-weight:600;margin-bottom:6px;" id="dynamic-export-label"></div>
-                <button class="btn btn-info btn-sm" id="dynamic-export-btn" onclick="exportDynamic()">📥 تصدير نتيجة الفلتر الحالي</button>
-            </div>
-
-            <p style="font-size:11px;color:#6b7280;margin-top:6px;">
-                💡 الماستر المحدث بيطلع كل المنتجات (بدون فلاتر). ملف ترينديول بيطلع المنتجات الظاهرة بعد الفلاتر اللي فيها تغيير فقط (باستثناء الهولد).
-            </p>
-        </div>
+    <div class="filter-row" style="margin-top:10px;">
+      <label>فلاتر سريعة:</label>
+      <div class="quick-filters">
+        <button class="btn btn-outline btn-sm" onclick="quickFilter('zeroing',this)">🔴 محتاجة تصفير</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFilter('restock',this)">🟢 في أودو + ترينديول صفر</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFilter('changes',this)">🟡 تغييرات كمية</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFilter('new',this)">🆕 منتجات جديدة</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFilter('new-no-odoo',this)">🆕❌ جديدة بدون أودو</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFilter('hold',this)">🔒 منتجات الهولد</button>
+      </div>
     </div>
-</div>
 
-<script>
-// ============================================================
-// STATE
-// ============================================================
-const S = {
-    data: { master: [], trendyol: [], odoo: [] },
-    merged: [],
-    filtered: [],
-    suppliers: [],
-    odooFilter: 'all',
-    tyFilter: 'all',
-    newFilter: 'all',
-    quickFilterActive: null,
-    ready: { master: false, trendyol: false, odoo: false }
-};
-
-const STORAGE_KEY = 'trendyol_saved_filters_v7';
-
-// ============================================================
-// BARCODE NORMALIZATION
-// ============================================================
-function normalizeBarcode(bc) {
-    if (!bc) return '';
-    let s = String(bc).trim();
-    return s.replace(/^0+/, '') || s;
-}
-
-// ============================================================
-// FILE LOADING
-// ============================================================
-function loadFile(input, type) {
-    const file = input.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-        try {
-            const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', raw: false });
-            const ws = wb.Sheets[wb.SheetNames[0]];
-            const json = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
-            if (!json.length) return alert('الملف فارغ');
-            S.data[type] = json;
-            S.ready[type] = true;
-            document.getElementById('dz-' + type).classList.add('loaded');
-            document.getElementById('st-' + type).textContent = `✅ ${json.length.toLocaleString()} صف`;
-            checkReady();
-        } catch (err) { alert('خطأ: ' + err.message); }
-    };
-    reader.readAsArrayBuffer(file);
-}
-
-function checkReady() {
-    const ok = S.ready.master && S.ready.trendyol && S.ready.odoo;
-    document.getElementById('btn-go').disabled = !ok;
-}
-
-// ============================================================
-// HELPERS
-// ============================================================
-const clean = v => v ? String(v).trim() : '';
-const toNum = v => { if (!v) return 0; const n = parseFloat(String(v).replace(/,/g, '')); return isNaN(n) ? 0 : n; };
-const toInt = v => { if (!v) return 0; const n = parseInt(String(v).replace(/,/g, ''), 10); return isNaN(n) ? 0 : n; };
-const getVal = (row, keys) => { for (const k of keys) { if (row[k] !== undefined && row[k] !== '') return row[k]; } return ''; };
-const dateStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
-
-// ✅ القائمة البيضاء: القيم المسموح الشغل عليها فقط
-function isAllowedStatusValue(v) {
-    const s = clean(v).toLowerCase();
-    return s === '' 
-        || s.startsWith('you need to enter a price') 
-        || s.startsWith('you need to enter stock');
-}
-
-function isProblemStatus(status, desc) {
-    const s = clean(status).toLowerCase();
-    
-    // 1) الحالة نفسها مسموحة أو فاضية → مش مشكلة
-    if (isAllowedStatusValue(s)) return false;
-    
-    // 2) DISABLED بس الوصف بيقول "محتاج سعر/ستوك" أو فاضي
-    //    → ده منتج متصفر ولسه بتشتغل عليه (عشان الـ restock ما يبوظش)
-    if (s === 'disabled' && isAllowedStatusValue(desc)) return false;
-    
-    // 3) أي حاجة تانية = مشكلة → تستبعد
-    return true;
-}
-
-function isHoldStock(val) {
-    const v = clean(val).toLowerCase();
-    return v === 'true' || v === 'yes' || v === 'نعم' || v === '1';
-}
-
-// ============================================================
-// PROCESSING
-// ============================================================
-function process() {
-    try {
-        const odooMap = new Map();
-        for (const row of S.data.odoo) {
-            const bc = clean(getVal(row, ['باركود', 'Barcode', 'barcode']));
-            if (!bc) continue;
-            const qty = toNum(getVal(row, ['الكمية في اليد', 'Quantity On Hand', 'quantity']));
-            odooMap.set(bc, qty);
-            const norm = normalizeBarcode(bc);
-            if (norm !== bc) odooMap.set(norm, qty);
-        }
-
-        const masterMap = new Map();
-        for (const row of S.data.master) {
-            const bc = clean(getVal(row, ['Barcode', 'barcode']));
-            if (!bc) continue;
-            masterMap.set(bc, {
-                odooBarcode: clean(getVal(row, ['Barcode odoo', 'باركود أودو'])),
-                supplier: clean(getVal(row, ['المورد', 'Supplier'])),
-                pieces: clean(getVal(row, ['عدد القطع', 'Pack Qty'])),
-                holdStock: isHoldStock(getVal(row, ['Hold Stock', 'Stock Alert Hold', 'hold stock', 'hold_stock', 'hold', 'Hold', 'هولد']))
-            });
-        }
-
-        S.merged = [];
-        const supSet = new Set();
-
-        for (const row of S.data.trendyol) {
-            const barcode = clean(getVal(row, ['Barcode', 'barcode']));
-            if (!barcode) continue;
-
-            const name = getVal(row, ['Product Name', 'اسم المنتج']);
-            const brand = getVal(row, ['Brand', 'البراند']);
-            const originalPrice = toNum(getVal(row, ['Original (List) Price', 'السعر الأصلي']));
-            const salePrice = toNum(getVal(row, ['Trendyol Sale Price (Including VAT)', 'Sale Price', 'سعر البيع']));
-            const stock = toInt(getVal(row, ['Stock', 'الكمية']));
-            const status = clean(getVal(row, ['Status', 'الحالة']));
-            const statusDesc = clean(getVal(row, ['Status Description', 'وصف الحالة']));
-            const supplierStockCode = clean(getVal(row, ['Supplier Stock Code']));
-
-            const master = masterMap.get(barcode);
-            const isNew = !master;
-
-            let odooBarcode;
-            if (master && master.odooBarcode) {
-                odooBarcode = master.odooBarcode;
-            } else if (supplierStockCode) {
-                odooBarcode = supplierStockCode;
-            } else {
-                odooBarcode = barcode;
-            }
-
-            const supplier = master ? master.supplier : '';
-            const pieces = master ? master.pieces : '';
-            const holdStock = master ? master.holdStock : false;
-
-            let hasOdoo = odooMap.has(odooBarcode);
-            let odooQty = hasOdoo ? odooMap.get(odooBarcode) : 0;
-
-            if (!hasOdoo) {
-                const normOdoo = normalizeBarcode(odooBarcode);
-                if (odooMap.has(normOdoo)) {
-                    hasOdoo = true;
-                    odooQty = odooMap.get(normOdoo);
-                }
-            }
-
-            const packQty = (pieces && !isNaN(parseInt(pieces)) && parseInt(pieces) > 0) ? parseInt(pieces) : 1;
-            const exportableStock = hasOdoo ? Math.floor(odooQty / packQty) : 0;
-            const isChange = stock !== exportableStock;
-            const isProblem = isProblemStatus(status, statusDesc);
-            const isIncomingStock = holdStock && stock > 0;
-
-            if (supplier) supSet.add(supplier);
-
-            S.merged.push({
-                barcode, name, brand, originalPrice, salePrice, stock,
-                status, statusDesc, supplierStockCode,
-                odooBarcode, supplier, pieces, packQty,
-                odooQty, hasOdoo, exportableStock,
-                isNew, isChange, isProblem, holdStock, isIncomingStock
-            });
-        }
-
-        S.suppliers = Array.from(supSet).sort();
-        document.getElementById('sec-results').classList.remove('hidden');
-        renderSuppliers();
-        loadSavedFilters();
-        applyFilters();
-
-    } catch (err) { alert('خطأ في المعالجة: ' + err.message); }
-}
-
-// ============================================================
-// FILTERS
-// ============================================================
-function setOdooFilter(mode, btn) {
-    S.odooFilter = mode;
-    document.querySelectorAll('#odoo-btns button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('flt-odoo-min').classList.toggle('hidden', mode !== 'range');
-    document.getElementById('flt-odoo-max').classList.toggle('hidden', mode !== 'range');
-    applyFilters();
-}
-
-function setTyFilter(mode, btn) {
-    S.tyFilter = mode;
-    document.querySelectorAll('#ty-btns button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('flt-ty-min').classList.toggle('hidden', mode !== 'range');
-    document.getElementById('flt-ty-max').classList.toggle('hidden', mode !== 'range');
-    applyFilters();
-}
-
-function setNewFilter(mode, btn) {
-    S.newFilter = mode;
-    document.querySelectorAll('#new-btns button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    applyFilters();
-}
-
-function quickFilter(type, btn) {
-    // لو الضغط على نفس الفلتر النشط، إلغاء التفعيل
-    if (S.quickFilterActive === type) {
-        S.quickFilterActive = null;
-        document.querySelectorAll('.quick-filters .btn').forEach(b => b.classList.remove('btn-active'));
-        S.odooFilter = 'all'; S.tyFilter = 'all'; S.newFilter = 'all';
-        updateFilterButtons();
-        applyFilters();
-        return;
-    }
-
-    S.quickFilterActive = type;
-    document.querySelectorAll('.quick-filters .btn').forEach(b => b.classList.remove('btn-active'));
-    if (btn) btn.classList.add('btn-active');
-
-    switch(type) {
-        case 'zeroing': S.tyFilter = 'gt0'; S.odooFilter = 'not-in-odoo'; S.newFilter = 'all'; break;
-        case 'restock': S.tyFilter = 'zero'; S.odooFilter = 'in-odoo'; S.newFilter = 'all'; break;
-        case 'changes': S.tyFilter = 'all'; S.odooFilter = 'in-odoo'; S.newFilter = 'all'; break;
-        case 'new': S.tyFilter = 'all'; S.odooFilter = 'all'; S.newFilter = 'new-only'; break;
-        case 'new-no-odoo': S.tyFilter = 'all'; S.odooFilter = 'not-in-odoo'; S.newFilter = 'new-only'; break;
-        case 'hold': S.tyFilter = 'all'; S.odooFilter = 'all'; S.newFilter = 'all'; break;
-    }
-
-    updateFilterButtons();
-    applyFilters();
-}
-
-function updateFilterButtons() {
-    document.querySelectorAll('#odoo-btns button').forEach(b => b.classList.remove('active'));
-    const odooIdx = { 'all': 0, 'in-odoo': 1, 'not-in-odoo': 2, 'range': 3 }[S.odooFilter];
-    if (odooIdx !== undefined) document.querySelectorAll('#odoo-btns button')[odooIdx].classList.add('active');
-
-    document.querySelectorAll('#ty-btns button').forEach(b => b.classList.remove('active'));
-    const tyIdx = { 'all': 0, 'zero': 1, 'gt0': 2, 'range': 3 }[S.tyFilter];
-    if (tyIdx !== undefined) document.querySelectorAll('#ty-btns button')[tyIdx].classList.add('active');
-
-    document.querySelectorAll('#new-btns button').forEach(b => b.classList.remove('active'));
-    const newIdx = { 'all': 0, 'new-only': 1, 'old-only': 2 }[S.newFilter];
-    if (newIdx !== undefined) document.querySelectorAll('#new-btns button')[newIdx].classList.add('active');
-}
-
-function applyFilters() {
-    const search = document.getElementById('flt-search').value.toLowerCase().trim();
-    const excludeProblems = document.getElementById('flt-exclude-problems').checked;
-    const excludedSuppliers = [];
-    document.querySelectorAll('.sup-chk:checked').forEach(cb => excludedSuppliers.push(cb.value));
-
-    S.filtered = S.merged.filter(item => {
-        if (excludeProblems && item.isProblem) return false;
-        if (item.supplier && excludedSuppliers.includes(item.supplier)) return false;
-        if (search) {
-            const str = `${item.barcode} ${item.name} ${item.brand} ${item.supplier} ${item.odooBarcode}`.toLowerCase();
-            if (!str.includes(search)) return false;
-        }
-        if (S.odooFilter === 'in-odoo' && !item.hasOdoo) return false;
-        if (S.odooFilter === 'not-in-odoo' && item.hasOdoo) return false;
-        if (S.odooFilter === 'range') {
-            const min = document.getElementById('flt-odoo-min').value ? toNum(document.getElementById('flt-odoo-min').value) : null;
-            const max = document.getElementById('flt-odoo-max').value ? toNum(document.getElementById('flt-odoo-max').value) : null;
-            if (min !== null && item.odooQty < min) return false;
-            if (max !== null && item.odooQty > max) return false;
-        }
-        if (S.tyFilter === 'zero' && item.stock !== 0) return false;
-        if (S.tyFilter === 'gt0' && item.stock <= 0) return false;
-        if (S.tyFilter === 'range') {
-            const min = document.getElementById('flt-ty-min').value ? toInt(document.getElementById('flt-ty-min').value) : null;
-            const max = document.getElementById('flt-ty-max').value ? toInt(document.getElementById('flt-ty-max').value) : null;
-            if (min !== null && item.stock < min) return false;
-            if (max !== null && item.stock > max) return false;
-        }
-        if (S.newFilter === 'new-only' && !item.isNew) return false;
-        if (S.newFilter === 'old-only' && item.isNew) return false;
-        if (S.quickFilterActive === 'changes' && !item.isChange) return false;
-        if (S.quickFilterActive === 'hold' && !item.holdStock) return false;
-        return true;
-    });
-
-    renderTable();
-    renderHoldReport();
-    updateStats();
-    updateDynamicExport();
-}
-
-function resetAll() {
-    document.getElementById('flt-search').value = '';
-    document.getElementById('flt-exclude-problems').checked = true;
-    document.querySelectorAll('.sup-chk').forEach(cb => { cb.checked = false; cb.parentElement.classList.remove('excluded'); });
-    S.odooFilter = 'all'; S.tyFilter = 'all'; S.newFilter = 'all'; S.quickFilterActive = null;
-    document.getElementById('flt-odoo-min').value = ''; document.getElementById('flt-odoo-max').value = '';
-    document.getElementById('flt-ty-min').value = ''; document.getElementById('flt-ty-max').value = '';
-    document.getElementById('flt-odoo-min').classList.add('hidden'); document.getElementById('flt-odoo-max').classList.add('hidden');
-    document.getElementById('flt-ty-min').classList.add('hidden'); document.getElementById('flt-ty-max').classList.add('hidden');
-    document.querySelectorAll('.quick-filters .btn').forEach(b => b.classList.remove('btn-active'));
-    updateFilterButtons();
-    document.querySelectorAll('.saved-filter-chip').forEach(c => c.classList.remove('active'));
-    applyFilters();
-}
-
-// ============================================================
-// DYNAMIC EXPORT - تصدير حسب الفلتر النشط
-// ============================================================
-function updateDynamicExport() {
-    const sec = document.getElementById('dynamic-export');
-    const label = document.getElementById('dynamic-export-label');
-    const btn = document.getElementById('dynamic-export-btn');
-
-    if (!S.quickFilterActive) {
-        sec.classList.add('hidden');
-        return;
-    }
-
-    let exportCount, excludedHold = 0, excludedNoChange = 0;
-
-    if (['zeroing', 'restock', 'changes'].includes(S.quickFilterActive)) {
-        excludedHold = S.filtered.filter(i => i.holdStock).length;
-        excludedNoChange = S.filtered.filter(i => !i.isChange && !i.holdStock).length;
-        exportCount = S.filtered.filter(i => i.isChange && !i.holdStock).length;
-    } else {
-        exportCount = S.filtered.length;
-    }
-
-    const labels = {
-        'zeroing': '🔴 تصدير منتجات التصفير',
-        'restock': '🟢 تصدير منتجات الرجوع',
-        'changes': '🟡 تصدير التغييرات الكمية',
-        'new': '🆕 تصدير المنتجات الجديدة',
-        'new-no-odoo': '🆕❌ تصدير المنتجات الجديدة بدون أودو',
-        'hold': '🔒 تصدير منتجات الهولد'
-    };
-
-    let extra = '';
-    if (excludedHold || excludedNoChange) {
-        extra = ` — مستبعد: ${excludedHold} هولد + ${excludedNoChange} بدون تغيير`;
-    }
-
-    label.innerHTML = `${labels[S.quickFilterActive]} — جاهز للتصدير: <strong>${exportCount}</strong>${extra}`;
-    btn.textContent = `📥 تصدير ${exportCount} منتج`;
-    sec.classList.remove('hidden');
-}
-
-function exportDynamic() {
-    if (!S.filtered.length) return alert('لا توجد منتجات للتصدير');
-
-    let data;
-    let fileName;
-
-    switch(S.quickFilterActive) {
-        case 'zeroing':
-        case 'restock':
-        case 'changes':
-            // تصدير كملف ترينديول (4 أعمدة)
-            data = S.filtered.filter(i => i.isChange && !i.holdStock).map(i => ({
-                'Barcode': i.barcode,
-                'Original (List) Price': i.originalPrice,
-                'Sale Price': i.salePrice,
-                'Stock': i.exportableStock
-            }));
-            fileName = `Trendyol_${S.quickFilterActive}_${dateStr()}.xlsx`;
-            downloadWithTextBarcodes(data, fileName, 'Price_And_Stock_Update', ['Barcode']);
-            break;
-        case 'new':
-        case 'new-no-odoo':
-            data = S.filtered.map(i => ({
-                'Barcode': i.barcode,
-                'Barcode odoo': i.odooBarcode,
-                'Product Name': i.name,
-                'Brand': i.brand,
-                'Supplier Stock Code': i.supplierStockCode,
-                'المورد': i.supplier || '',
-                'عدد القطع': i.pieces || '',
-                'Odoo Qty': i.hasOdoo ? i.odooQty : '',
-                'Status': i.status
-            }));
-            fileName = `New_Products_${dateStr()}.xlsx`;
-            downloadWithTextBarcodes(data, fileName, 'New Products', ['Barcode', 'Barcode odoo', 'Supplier Stock Code']);
-            break;
-        case 'hold':
-            data = S.filtered.map(i => ({
-                'Barcode': i.barcode,
-                'Barcode odoo': i.odooBarcode,
-                'Product Name': i.name,
-                'المورد': i.supplier,
-                'Stock (Trendyol)': i.stock,
-                'Odoo Qty': i.hasOdoo ? i.odooQty : '',
-                'Exportable Stock': i.exportableStock,
-                'عدد القطع': i.pieces
-            }));
-            fileName = `Hold_Products_${dateStr()}.xlsx`;
-            downloadWithTextBarcodes(data, fileName, 'Hold Products', ['Barcode', 'Barcode odoo']);
-            break;
-        default:
-            data = S.filtered.map(i => ({
-                'Barcode': i.barcode,
-                'Barcode odoo': i.odooBarcode,
-                'Product Name': i.name,
-                'المورد': i.supplier,
-                'Stock (Trendyol)': i.stock,
-                'Odoo Qty': i.hasOdoo ? i.odooQty : '',
-                'Exportable Stock': i.exportableStock
-            }));
-            fileName = `Filtered_Export_${dateStr()}.xlsx`;
-            downloadWithTextBarcodes(data, fileName, 'Filtered', ['Barcode', 'Barcode odoo']);
-    }
-}
-
-// ============================================================
-// SAVED FILTERS
-// ============================================================
-function saveFilterGroup() {
-    const name = prompt('أدخل اسم الفلتر:');
-    if (!name || !name.trim()) return;
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    const excludedSuppliers = [];
-    document.querySelectorAll('.sup-chk:checked').forEach(cb => excludedSuppliers.push(cb.value));
-    saved.push({
-        name: name.trim(),
-        createdAt: new Date().toISOString(),
-        state: {
-            search: document.getElementById('flt-search').value,
-            excludeProblems: document.getElementById('flt-exclude-problems').checked,
-            excludedSuppliers,
-            odooFilter: S.odooFilter,
-            odooMin: document.getElementById('flt-odoo-min').value,
-            odooMax: document.getElementById('flt-odoo-max').value,
-            tyFilter: S.tyFilter,
-            tyMin: document.getElementById('flt-ty-min').value,
-            tyMax: document.getElementById('flt-ty-max').value,
-            newFilter: S.newFilter,
-            quickFilterActive: S.quickFilterActive
-        }
-    });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-    loadSavedFilters();
-    alert(`تم حفظ الفلتر "${name.trim()}"`);
-}
-
-function loadSavedFilters() {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    const container = document.getElementById('saved-filters-list');
-    if (!saved.length) {
-        container.innerHTML = '<span style="font-size:11px;color:#9ca3af;">لا توجد فلاتر محفوظة</span>';
-        return;
-    }
-    container.innerHTML = saved.map((f, i) => `
-        <div class="saved-filter-chip" onclick="applySavedFilter(${i}, this)">
-            <span>${f.name}</span>
-            <span class="del" onclick="event.stopPropagation();deleteSavedFilter(${i})">✕</span>
-        </div>
-    `).join('');
-}
-
-function applySavedFilter(idx, chip) {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    if (!saved[idx]) return;
-    const st = saved[idx].state;
-    document.getElementById('flt-search').value = st.search || '';
-    document.getElementById('flt-exclude-problems').checked = st.excludeProblems;
-    document.querySelectorAll('.sup-chk').forEach(cb => {
-        cb.checked = st.excludedSuppliers.includes(cb.value);
-        cb.parentElement.classList.toggle('excluded', cb.checked);
-    });
-    S.odooFilter = st.odooFilter || 'all';
-    S.tyFilter = st.tyFilter || 'all';
-    S.newFilter = st.newFilter || 'all';
-    S.quickFilterActive = st.quickFilterActive || null;
-    document.getElementById('flt-odoo-min').value = st.odooMin || '';
-    document.getElementById('flt-odoo-max').value = st.odooMax || '';
-    document.getElementById('flt-ty-min').value = st.tyMin || '';
-    document.getElementById('flt-ty-max').value = st.tyMax || '';
-    document.getElementById('flt-odoo-min').classList.toggle('hidden', S.odooFilter !== 'range');
-    document.getElementById('flt-odoo-max').classList.toggle('hidden', S.odooFilter !== 'range');
-    document.getElementById('flt-ty-min').classList.toggle('hidden', S.tyFilter !== 'range');
-    document.getElementById('flt-ty-max').classList.toggle('hidden', S.tyFilter !== 'range');
-    updateFilterButtons();
-    document.querySelectorAll('.saved-filter-chip').forEach(c => c.classList.remove('active'));
-    if (chip) chip.classList.add('active');
-    // تحديث أزرار الفلاتر السريعة
-    document.querySelectorAll('.quick-filters .btn').forEach(b => b.classList.remove('btn-active'));
-    applyFilters();
-}
-
-function deleteSavedFilter(idx) {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    saved.splice(idx, 1);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-    loadSavedFilters();
-}
-
-// ============================================================
-// RENDERING
-// ============================================================
-function renderSuppliers() {
-    const grid = document.getElementById('supplier-grid');
-    if (!S.suppliers.length) { grid.innerHTML = '<span style="font-size:11px;color:#9ca3af;">لا يوجد موردين</span>'; return; }
-    grid.innerHTML = S.suppliers.map(s => `
-        <label class="supplier-item">
-            <input type="checkbox" class="sup-chk" value="${s}" onchange="this.parentElement.classList.toggle('excluded',this.checked);applyFilters()">
-            <span>${s}</span>
-        </label>
-    `).join('');
-}
-
-function renderTable() {
-    const tbody = document.getElementById('tbody');
-    const limit = 500;
-    const display = S.filtered.slice(0, limit);
-
-    if (!display.length) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:20px;">لا توجد بيانات مطابقة للفلاتر</td></tr>';
-        document.getElementById('tbl-info').textContent = '';
-        return;
-    }
-
-    tbody.innerHTML = display.map(item => {
-        let badge;
-        if (item.holdStock && item.isIncomingStock) badge = '<span class="badge badge-hold">Hold + مخزون ⚠️</span>';
-        else if (item.holdStock) badge = '<span class="badge badge-hold">🔒 Hold</span>';
-        else if (item.isNew) badge = '<span class="badge badge-new">جديد ⭐</span>';
-        else if (!item.hasOdoo && item.stock > 0) badge = '<span class="badge badge-no-odoo">تصفير</span>';
-        else if (!item.hasOdoo) badge = '<span class="badge badge-no-odoo">بدون أودو</span>';
-        else if (item.isChange) badge = '<span class="badge badge-change">تغيير</span>';
-        else badge = '<span class="badge badge-same">ثابت</span>';
-
-        return `<tr>
-            <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${item.barcode}</td>
-            <td style="direction:ltr;text-align:left;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.name || '—'}</td>
-            <td>${item.supplier || '—'}</td>
-            <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${item.odooBarcode}</td>
-            <td style="text-align:center;">${item.stock}</td>
-            <td style="text-align:center;">${item.hasOdoo ? item.odooQty : '<span style="color:#ef4444;">—</span>'}</td>
-            <td style="text-align:center;">${item.pieces || '1'}</td>
-            <td style="text-align:center;font-weight:700;">${item.exportableStock}</td>
-            <td>${badge}</td>
-        </tr>`;
-    }).join('');
-
-    document.getElementById('tbl-info').textContent = S.filtered.length > limit
-        ? `عرض ${limit} من ${S.filtered.length.toLocaleString()} منتج`
-        : `عرض ${S.filtered.length.toLocaleString()} منتج`;
-}
-
-function renderHoldReport() {
-    const holdIncoming = S.merged.filter(i => i.isIncomingStock);
-    const sec = document.getElementById('sec-hold-report');
-    const tbody = document.getElementById('tbody-hold');
-    if (!holdIncoming.length) { sec.classList.add('hidden'); return; }
-    sec.classList.remove('hidden');
-    tbody.innerHTML = holdIncoming.map(item => `
-        <tr>
-            <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${item.barcode}</td>
-            <td style="direction:ltr;text-align:left;">${item.name || '—'}</td>
-            <td>${item.supplier || '—'}</td>
-            <td style="text-align:center;font-weight:700;color:#ec4899;">${item.stock}</td>
-        </tr>
-    `).join('');
-}
-
-function updateStats() {
-    const total = S.filtered.length;
-    const newCount = S.filtered.filter(i => i.isNew).length;
-    const newNoOdoo = S.filtered.filter(i => i.isNew && !i.hasOdoo).length;
-    const changes = S.filtered.filter(i => i.isChange).length;
-    const noOdoo = S.filtered.filter(i => !i.hasOdoo).length;
-    const holdCount = S.filtered.filter(i => i.holdStock).length;
-    const excluded = S.merged.length - S.filtered.length;
-
-    document.getElementById('s-total').textContent = total.toLocaleString();
-    document.getElementById('s-new').textContent = newCount.toLocaleString();
-    document.getElementById('s-new-no-odoo').textContent = newNoOdoo.toLocaleString();
-    document.getElementById('s-changes').textContent = changes.toLocaleString();
-    document.getElementById('s-no-odoo').textContent = noOdoo.toLocaleString();
-    document.getElementById('s-hold').textContent = holdCount.toLocaleString();
-    document.getElementById('s-excluded').textContent = excluded.toLocaleString();
-    document.getElementById('c-master').textContent = S.merged.length.toLocaleString();
-    document.getElementById('c-new').textContent = S.filtered.filter(i => i.isNew).length.toLocaleString();
-    document.getElementById('c-ty').textContent = S.filtered.filter(i => i.isChange && !i.holdStock).length.toLocaleString();
-}
-
-// ============================================================
-// EXPORT
-// ============================================================
-function downloadWithTextBarcodes(data, fileName, sheetName, barcodeCols) {
-    if (!data.length) return alert('لا توجد بيانات للتصدير');
-    const ws = XLSX.utils.json_to_sheet(data);
-    if (ws['!ref']) {
-        const range = XLSX.utils.decode_range(ws['!ref']);
-        const headers = [];
-        for (let c = range.s.c; c <= range.e.c; c++) {
-            const cell = ws[XLSX.utils.encode_cell({ r: 0, c })];
-            headers.push(cell ? cell.v : '');
-        }
-        for (let r = 1; r <= range.e.r; r++) {
-            for (let c = 0; c < headers.length; c++) {
-                if (barcodeCols.includes(headers[c])) {
-                    const cellRef = XLSX.utils.encode_cell({ r, c });
-                    if (ws[cellRef]) { ws[cellRef].t = 's'; ws[cellRef].v = String(ws[cellRef].v); }
-                }
-            }
-        }
-    }
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    XLSX.writeFile(wb, fileName);
-}
-
-function exportMaster() {
-    if (!S.merged.length) return alert('لا توجد منتجات');
-    const data = S.merged.map(i => ({
-        'Barcode': i.barcode,
-        'Barcode odoo': i.odooBarcode,
-        'Product Name': i.name,
-        'Brand': i.brand,
-        'Original (List) Price': i.originalPrice,
-        'Trendyol Sale Price': i.salePrice,
-        'Stock (Trendyol)': i.stock,
-        'Odoo Qty': i.hasOdoo ? i.odooQty : '',
-        'Exportable Stock': i.exportableStock,
-        'المورد': i.supplier,
-        'عدد القطع': i.pieces,
-        'Hold Stock': i.holdStock ? 'TRUE' : 'FALSE',
-        'Status': i.status,
-        'Is New': i.isNew ? 'Yes' : 'No',
-        'Has Change': i.isChange ? 'Yes' : 'No'
-    }));
-    downloadWithTextBarcodes(data, `Master_Updated_${dateStr()}.xlsx`, 'Master', ['Barcode', 'Barcode odoo']);
-}
-
-function exportNew() {
-    const data = S.filtered.filter(i => i.isNew).map(i => ({
-        'Barcode': i.barcode,
-        'Barcode odoo': i.odooBarcode,
-        'Product Name': i.name,
-        'Brand': i.brand,
-        'Supplier Stock Code': i.supplierStockCode,
-        'المورد': i.supplier || '',
-        'عدد القطع': i.pieces || '',
-        'Odoo Qty': i.hasOdoo ? i.odooQty : '',
-        'Status': i.status
-    }));
-    if (!data.length) return alert('لا توجد منتجات جديدة بعد الفلترة');
-    downloadWithTextBarcodes(data, `New_Products_${dateStr()}.xlsx`, 'New Products', ['Barcode', 'Barcode odoo', 'Supplier Stock Code']);
-}
-
-function exportTrendyol() {
-    const data = S.filtered.filter(i => i.isChange && !i.holdStock).map(i => ({
-        'Barcode': i.barcode,
-        'Original (List) Price': i.originalPrice,
-        'Sale Price': i.salePrice,
-        'Stock': i.exportableStock
-    }));
-    if (!data.length) return alert('لا توجد تغييرات للتصدير بعد الفلترة');
-    downloadWithTextBarcodes(data, `Trendyol_Export_${dateStr()}.xlsx`, 'Price_And_Stock_Update', ['Barcode']);
-}
-</script>
-</body>
-</html>
+    <div class="filter-row">
+      <label>بحث عام:</label>
+      <input type="text" id="flt-search" placeholder="باركود، اسم، براند، مورد..." oninput="applyFilters()">
+    </div>
+
+    <div class="filter-row">
+      <label>استبعاد:</label>
+      <label style="display:flex;align-items:center;gap:4px;font-weight:400;min-width:auto;">
+        <input type="checkbox" id="flt-exclude-problems" checked onchange="applyFilters()" style="width:15px;height:15px;accent-color:#ef4444;">
+        استبعاد الأرشيف وحالات المشاكل
+      </label>
+    </div>
+
+    <div class="filter-row" style="align-items:flex-start;">
+      <label style="margin-top:6px;">استبعاد موردين:</label>
+      <div class="supplier-grid" id="supplier-grid"><span style="font-size:11px;color:#9ca3af;">ارفع الملفات أولاً</span></div>
+    </div>
+
+    <div class="filter-row">
+      <label>كمية أودو:</label>
+      <div class="qty-btns" id="odoo-btns">
+        <button onclick="setOdooFilter('all',this)" class="active">الكل</button>
+        <button onclick="setOdooFilter('in-odoo',this)">موجود في أودو</button>
+        <button onclick="setOdooFilter('not-in-odoo',this)">مش موجود في أودو</button>
+        <button onclick="setOdooFilter('range',this)">من-إلى</button>
+      </div>
+      <input type="number" id="flt-odoo-min" placeholder="من" class="hidden" oninput="applyFilters()">
+      <input type="number" id="flt-odoo-max" placeholder="إلى" class="hidden" oninput="applyFilters()">
+    </div>
+
+    <div class="filter-row">
+      <label>كمية ترينديول:</label>
+      <div class="qty-btns" id="ty-btns">
+        <button onclick="setTyFilter('all',this)" class="active">الكل</button>
+        <button onclick="setTyFilter('zero',this)">= 0</button>
+        <button onclick="setTyFilter('gt0',this)">> 0</button>
+        <button onclick="setTyFilter('range',this)">من-إلى</button>
+      </div>
+      <input type="number" id="flt-ty-min" placeholder="من" class="hidden" oninput="applyFilters()">
+      <input type="number" id="flt-ty-max" placeholder="إلى" class="hidden" oninput="applyFilters()">
+    </div>
+
+    <div class="filter-row">
+      <label>المنتجات:</label>
+      <div class="qty-btns" id="new-btns">
+        <button onclick="setNewFilter('all',this)" class="active">الكل</button>
+        <button onclick="setNewFilter('new-only',this)">الجديدة فقط</button>
+        <button onclick="setNewFilter('old-only',this)">القديمة فقط</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= HOLD REPORT ================= -->
+  <div class="card hidden" id="sec-hold-report">
+    <h3 style="font-size:14px;font-weight:700;margin:0 0 10px;color:#ec4899;">⚠️ تنبيه: منتجات عليها Hold ودخل لها مخزون جديد في ترينديول</h3>
+    <div class="table-wrap" style="max-height:250px;">
+      <table><thead><tr><th>الباركود</th><th>الاسم</th><th>المورد</th><th>الكمية الجديدة على ترينديول</th></tr></thead>
+      <tbody id="tbody-hold"></tbody>
