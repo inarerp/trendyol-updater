@@ -300,6 +300,7 @@ function isHoldStock(val){
 const SPEC = {
   trendyol: {
     barcode: { a:['barcode'], r:1 },
+    ssc:     { a:['supplier stock code'] },
     odoo:    { a:['barcode odoo','باركود أودو'] },
     name:    { a:['product name'] },
     brand:   { a:['brand'] },
@@ -470,12 +471,14 @@ async function processAll(){
       const vatMult = vatRate === 0 ? 1 : (1 + vatRate/100);   // 0 → 1 | 15 → 1.15
       const status = dT.map.status!==undefined ? clean(r[dT.map.status]) : '';
       const statusDesc = dT.map.statusDesc!==undefined ? clean(r[dT.map.statusDesc]) : '';
+           const tySsc  = dT.map.ssc!==undefined  ? clean(r[dT.map.ssc])  : '';
       const tyOdoo = dT.map.odoo!==undefined ? clean(r[dT.map.odoo]) : '';
 
       const master = getBoth(masterMap, barcode);
       const isNew = !master;
 
-      let odooBarcode = (master && master.odoo) ? master.odoo : (tyOdoo || barcode);
+      // باركود أودو: الماستر الأول → Supplier Stock Code (ملف ترينديول الجديد) → عمود Barcode odoo لو موجود → باركود ترينديول آخر حل
+      let odooBarcode = (master && master.odoo) ? master.odoo : (tySsc || tyOdoo || barcode);
       const supplier = master ? master.supplier : '';
       const pieces = master ? master.pieces : 0;
       const holdStock = master ? master.hold : false;
