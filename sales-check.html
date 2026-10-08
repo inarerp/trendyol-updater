@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>فحص المبيعات والموردين</title>
+<title>فحص المبيعات - Trendyol Updater</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
@@ -17,470 +17,300 @@
   .dropzone.loaded{border-color:#10b981;background:#ecfdf5}
   .btn{padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px}
   .btn-primary{background:#6366f1;color:#fff}.btn-primary:hover{background:#4f46e5}
-  .btn-outline{background:#fff;border:1px solid #d1d5db;color:#374151}.btn-outline:hover{background:#f9fafb}
-  .btn-sm{padding:5px 10px;font-size:12px}
-  .sup-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
-  .sup-row input[type=text]{border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:12px;width:160px}
-  .stat-box{text-align:center;padding:12px;border-radius:8px;background:#f8fafc}
-  .stat-num{font-size:22px;font-weight:700}
-  .stat-lbl{font-size:10px;color:#6b7280;margin-top:2px}
-  table{width:100%;border-collapse:collapse;font-size:12px}
-  th{background:#f8fafc;padding:8px;text-align:right;border-bottom:2px solid #e2e8f0;position:sticky;top:0;font-weight:600;white-space:nowrap}
-  td{padding:6px 8px;border-bottom:1px solid #f1f5f9}
-  tr:hover{background:#f8fafc}
-  .badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600}
-  .b-ok{background:#dcfce7;color:#166534}.b-short{background:#fef3c7;color:#92400e}
-  .b-none{background:#fee2e2;color:#991b1b}.b-unk{background:#f1f5f9;color:#475569}
+  .btn-success{background:#10b981;color:#fff}.btn-success:hover{background:#059669}
   .table-wrap{max-height:500px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px}
-  .hidden{display:none}
-  .chip{padding:4px 10px;border:1px solid #d1d5db;border-radius:16px;font-size:11px;cursor:pointer;background:#fff}
-  .chip.active{background:#6366f1;color:#fff;border-color:#6366f1}
-  .warn-box{margin-top:10px;padding:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:12px;color:#9a3412}
-  .info-box{margin-top:10px;padding:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px;color:#1e40af}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{background:#f8fafc;padding:8px;text-align:right;border-bottom:2px solid #e2e8f0;position:sticky;top:0;font-weight:600}
+  td{padding:6px 8px;border-bottom:1px solid #f1f5f9}
+  .status-match{background:#dcfce7;color:#166534;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600}
+  .status-diff{background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600}
+  .status-missing{background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600}
+  .status-cancelled{background:#e0e7ff;color:#3730a3;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600}
 </style>
 </head>
-<body>
-<div style="max-width:1200px;margin:0 auto;padding:16px;">
+<body class="min-h-screen p-6">
 
+<div style="max-width:1200px;margin:0 auto;">
+
+  <!-- شريط التنقل -->
   <div class="topnav">
-    <a href="index.html">📦 تحديث المخزون</a> | <span class="current">🛒 فحص المبيعات والموردين</span>
+    <a href="index.html">🏠 الرئيسية</a> | 
+    <a href="inventory-update.html">📦 تحديث المخزون</a> | 
+    <span class="current">🛒 فحص المبيعات</span> | 
+    <a href="supplier-sync.html"> مزامنة مورد</a>
   </div>
 
-  <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;">🛒 فحص المبيعات والموردين</h1>
-  <p style="text-align:center;font-size:13px;color:#64748b;margin-bottom:16px;">مبيعات اليوم vs مخزوننا، ومين المورد البديل</p>
+  <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;margin-bottom:20px;">🛒 فحص ومقارنة المبيعات</h1>
 
-  <!-- ================= UPLOADS ================= -->
+  <!-- رفع الملفات -->
   <div class="card">
-    <h3 style="font-size:15px;font-weight:700;margin:0 0 12px;">📂 رفع الملفات</h3>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">📂 رفع الملفات</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+      
+      <div class="dropzone" id="dz-base" onclick="document.getElementById('f-base').click()">
+        <input type="file" id="f-base" accept=".xlsx,.xls" style="display:none" onchange="pickFile(this,'base')">
+        <div style="font-size:24px;">📄</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">الملف الأساسي (جدوى)</div>
+        <div id="st-base" style="font-size:11px;color:#6b7280;">اضغط للرفع</div>
+      </div>
+
       <div class="dropzone" id="dz-sales" onclick="document.getElementById('f-sales').click()">
-        <input type="file" id="f-sales" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'sales')">
-        <div style="font-size:24px;">🧾</div>
-        <div style="font-weight:600;font-size:13px;margin:4px 0;">مبيعات ترينديول (اليوم)</div>
-        <div id="st-sales" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
+        <input type="file" id="f-sales" accept=".xlsx,.xls" multiple style="display:none" onchange="pickFile(this,'sales')">
+        <div style="font-size:24px;">💰</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">مبيعات ترينديول (Orders)</div>
+        <div id="st-sales" style="font-size:11px;color:#6b7280;">يمكن رفع أكثر من ملف</div>
       </div>
-      <div class="dropzone" id="dz-odoo" onclick="document.getElementById('f-odoo').click()">
-        <input type="file" id="f-odoo" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'odoo')">
+
+      <div class="dropzone" id="dz-cancelled" onclick="document.getElementById('f-cancelled').click()">
+        <input type="file" id="f-cancelled" accept=".xlsx,.xls" multiple style="display:none" onchange="pickFile(this,'cancelled')">
+        <div style="font-size:24px;">❌</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">الطلبات الملغاة</div>
+        <div id="st-cancelled" style="font-size:11px;color:#6b7280;">يمكن رفع أكثر من ملف</div>
+      </div>
+
+      <div class="dropzone" id="dz-products" onclick="document.getElementById('f-products').click()">
+        <input type="file" id="f-products" accept=".xlsx,.xls" style="display:none" onchange="pickFile(this,'products')">
         <div style="font-size:24px;">📦</div>
-        <div style="font-weight:600;font-size:13px;margin:4px 0;">مخزون أودو (قبل خصم المبيعات)</div>
-        <div id="st-odoo" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">منتجات ترينديول (VAT)</div>
+        <div id="st-products" style="font-size:11px;color:#6b7280;">ملف المنتجات</div>
       </div>
-      <div class="dropzone" id="dz-master" onclick="document.getElementById('f-master').click()">
-        <input type="file" id="f-master" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'master')">
-        <div style="font-size:24px;">📋</div>
-        <div style="font-weight:600;font-size:13px;margin:4px 0;">الماستر (عدد القطع + باركود أودو)</div>
-        <div id="st-master" style="font-size:11px;color:#6b7280;">اختياري بس مهم جدًا</div>
-      </div>
-    </div>
 
-    <div style="margin-top:14px;">
-      <div style="font-size:13px;font-weight:700;margin-bottom:6px;">🏬 شيتات الموردين (ملف + اسم لكل مورد):</div>
-      <div id="supplier-rows"></div>
-      <button class="btn btn-outline btn-sm" onclick="addSupplierRow()">+ إضافة مورد</button>
     </div>
-
-    <div style="text-align:center;margin-top:14px;">
-      <button class="btn btn-primary" onclick="processAll()">🔄 معالجة الكل</button>
-      <p style="font-size:11px;color:#6b7280;margin-top:6px;">اختار كل الملفات الأول، وبعدين دوس معالجة مرة واحدة</p>
+    <div style="text-align:center;margin-top:20px;">
+      <button class="btn btn-primary" id="btn-process" disabled onclick="processAll()" style="padding:10px 30px;font-size:14px;"> ابدأ المعالجة</button>
     </div>
-    <div id="read-summary" class="info-box hidden"></div>
-    <div id="warnings" class="warn-box hidden"></div>
   </div>
 
-  <!-- ================= RESULTS ================= -->
-  <div id="sec-results" class="hidden">
-    <div class="card">
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;">
-        <div class="stat-box"><div class="stat-num" style="color:#6366f1" id="s-items">0</div><div class="stat-lbl">أصناف مباعة</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:#334155" id="s-pieces">0</div><div class="stat-lbl">إجمالي قطع مباعة</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:#10b981" id="s-ok">0</div><div class="stat-lbl">✅ متوفر عندنا</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:#f59e0b" id="s-short">0</div><div class="stat-lbl">⚠️ مش كفاية</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:#ef4444" id="s-none">0</div><div class="stat-lbl">❌ مش في مخزوننا</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:#8b5cf6" id="s-sup">0</div><div class="stat-lbl">🏬 لقيناه عند مورد</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:#64748b" id="s-unk">0</div><div class="stat-lbl">❓ مش متعرف عليه</div></div>
+  <!-- النتائج -->
+  <div class="card hidden" id="results-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+      <h3 style="font-size:15px;font-weight:700;">📊 ملخص النتيجة</h3>
+      <button class="btn btn-success" id="btn-download" onclick="downloadResult()">💾 تحميل Excel</button>
+    </div>
+    
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">
+      <div style="background:#f8fafc;padding:10px;border-radius:8px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;color:#6366f1" id="stat-total">0</div>
+        <div style="font-size:11px;color:#6b7280">إجمالي</div>
       </div>
-      <p id="note-cancel" style="font-size:11px;color:#94a3b8;margin-top:6px;"></p>
+      <div style="background:#dcfce7;padding:10px;border-radius:8px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;color:#166534" id="stat-match">0</div>
+        <div style="font-size:11px;color:#166534">✅ متساوي</div>
+      </div>
+      <div style="background:#fee2e2;padding:10px;border-radius:8px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;color:#991b1b" id="stat-diff">0</div>
+        <div style="font-size:11px;color:#991b1b">❌ مختلف</div>
+      </div>
+      <div style="background:#e0e7ff;padding:10px;border-radius:8px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;color:#3730a3" id="stat-cancelled">0</div>
+        <div style="font-size:11px;color:#3730a3">🔄 ملغي (Customer Request)</div>
+      </div>
     </div>
 
-    <div class="card">
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
-        <input type="text" id="flt-search" placeholder="🔍 بحث بالباركود أو الاسم..." style="border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;font-size:12px;flex:1;min-width:180px" oninput="renderTable()">
-        <button class="chip active" onclick="setView('all',this)">الكل</button>
-        <button class="chip" onclick="setView('none',this)">❌ مش في مخزوننا</button>
-        <button class="chip" onclick="setView('short',this)">⚠️ مش كفاية</button>
-        <button class="chip" onclick="setView('withsup',this)">🏬 عند مورد بديل</button>
-        <button class="chip" onclick="setView('unknown',this)">❓ مش متعرف عليه</button>
-        <button class="btn btn-primary btn-sm" onclick="exportResults()">📥 تصدير النتائج</button>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>Barcode (ترينديول)</th><th>Stock Code</th><th>الاسم</th><th>إجمالي المباع</th><th>عدد القطع</th><th>قطع مطلوبة</th><th>مخزوننا</th><th>المتبقي</th><th>حالتنا</th><th>متوفر عند</th>
-          </tr></thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-      <p id="tbl-info" style="font-size:11px;color:#6b7280;margin-top:4px;"></p>
+    <div class="table-wrap">
+      <table id="preview-table">
+        <thead><tr id="table-headers"></tr></thead>
+        <tbody id="table-body"></tbody>
+      </table>
     </div>
   </div>
+
 </div>
 
 <script>
-// ============================================================
-// STATE + HELPERS
-// ============================================================
-const S = {
-  files: { sales:null, odoo:null, master:null },
-  suppliers: [],
-  results: [],
-  view: 'all',
-  skippedCancel: 0
-};
+let files = { base:null, sales:[], cancelled:[], products:null };
+let resultData = [];
 
-const clean = v => v ? String(v).trim() : '';
-const toInt = v => { if(!v) return 0; const n = parseInt(String(v).replace(/,/g,''),10); return isNaN(n)?0:n; };
-const toNum = v => { if(!v) return 0; const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n)?0:n; };
-const norm = bc => { if(!bc) return ''; const s = String(bc).trim(); return s.replace(/^0+/,'') || s; };
-const dateStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
-
-// أسماء الأعمدة المقبولة لكل ملف (مش محتاج تغيّر ملفاتك)
-const SPEC = {
-  sales: {
-    code:      { a:['stock code'], r:1 },
-    tybarcode: { a:['barcode'] },
-    qty:       { a:['quantity','qty'], r:1 },
-    name:      { a:['product name'] },
-    status:    { a:['order status'] }
-  },
-  odoo: {
-    barcode: { a:['باركود','barcode'], r:1 },
-    qty:     { a:['الكمية في اليد','quantity on hand','quantity'], r:1 },
-    name:    { a:['اسم العرض','product name'] }
-  },
-  master: {
-    barcode: { a:['barcode','trendyol barcode'], r:1 },
-    odoo:    { a:['barcode odoo','باركود أودو','odoo barcode'] },
-    pieces:  { a:['عدد القطع','pack qty','pack quantity'] },
-    name:    { a:['product name'] }
-  },
-  sup: {
-    barcode: { a:['stock code','barcode','باركود','code','sku','item code','ean','product code'], r:1 },
-    qty:     { a:['quantity','qty','الكمية','stock','available'] }
+function pickFile(input, type) {
+  const f = input.files;
+  if(f.length > 0) {
+    if(type === 'sales' || type === 'cancelled') {
+      files[type] = Array.from(f);
+      document.getElementById('st-'+type).textContent = `✅ ${f.length} ملف`;
+    } else {
+      files[type] = f[0];
+      document.getElementById('st-'+type).textContent = `✅ ${f[0].name}`;
+    }
+    document.getElementById('dz-'+type).classList.add('loaded');
+    checkReady();
   }
-};
-
-function pickFile(input, type){
-  const f = input.files[0]; if(!f) return;
-  S.files[type] = f;
-  document.getElementById('dz-'+type).classList.add('loaded');
-  document.getElementById('st-'+type).textContent = '✅ ' + f.name;
 }
 
-function addSupplierRow(){
-  const div = document.createElement('div');
-  div.className = 'sup-row';
-  div.innerHTML = `
-    <input type="file" class="sup-file" accept=".xlsx,.xls,.csv">
-    <input type="text" class="sup-name" placeholder="اسم المورد (إجباري)">
-    <button class="btn btn-outline btn-sm" onclick="this.parentElement.remove()">✕</button>`;
-  document.getElementById('supplier-rows').appendChild(div);
+function checkReady() {
+  document.getElementById('btn-process').disabled = !(files.base && files.sales.length > 0 && files.products);
 }
 
-// ============================================================
-// READING + HEADER DETECTION
-// ============================================================
-function readRows(file){
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = e => {
-      try {
-        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array', raw:false });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        res(XLSX.utils.sheet_to_json(ws, { header:1, defval:'' }));
-      } catch(err){ rej(err); }
+async function readExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''}));
     };
-    r.onerror = () => rej(new Error('فشل قراءة الملف'));
-    r.readAsArrayBuffer(file);
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
   });
 }
 
-// بيلاقي صف الهيدرز حتى لو قبله جمل، وبيرجع فهرس العمود الفعلي لكل حقل
-function detect(rows, spec){
-  for (let i=0; i<Math.min(rows.length,10); i++){
-    const cells = (rows[i]||[]).map(c => String(c).toLowerCase().trim().replace(/\s+/g,' '));
-    const map = {}; let ok = true;
-    for (const key in spec){
-      let col = -1;
-      for (const a of spec[key].a){
-        const ci = cells.indexOf(a);
-        if (ci >= 0){ col = ci; break; }
-      }
-      if (col >= 0) map[key] = col;
-      else if (spec[key].r){ ok = false; break; }
-    }
-    if (ok && Object.keys(map).length) return { headerRow:i, map };
+function findCol(headers, names) {
+  for(let n of names) {
+    let idx = headers.findIndex(h => String(h).toLowerCase().trim() === n.toLowerCase().trim());
+    if(idx !== -1) return idx;
   }
-  return null;
-}
-
-// بيرجع الأعمدة الظاهرة عشان رسالة الخطأ تبقى مفيدة
-function guessHeaders(rows){
-  let best = [];
-  for (let i=0; i<Math.min(rows.length,5); i++){
-    const vals = (rows[i]||[]).map(c=>clean(c)).filter(Boolean);
-    if (vals.length > best.length) best = vals;
+  // Fuzzy match
+  for(let n of names) {
+    let idx = headers.findIndex(h => String(h).toLowerCase().includes(n.toLowerCase()));
+    if(idx !== -1) return idx;
   }
-  return best.slice(0,10).join(' | ');
+  return -1;
 }
 
-function putBoth(map, key, val){
-  if (!map.has(key)) map.set(key, val);
-  const n = norm(key);
-  if (n && n !== key && !map.has(n)) map.set(n, val);
-}
-function getBoth(map, key){
-  if (!key) return undefined;
-  if (map.has(key)) return map.get(key);
-  const n = norm(key);
-  return map.has(n) ? map.get(n) : undefined;
-}
+async function processAll() {
+  document.getElementById('btn-process').textContent = '⏳ جاري المعالجة...';
+  document.getElementById('btn-process').disabled = true;
 
-// ============================================================
-// PROCESS
-// ============================================================
-async function processAll(){
-  if (!S.files.sales || !S.files.odoo) return alert('ارفع ملف المبيعات وملف أودو على الأقل');
-  const warnings = [];
   try {
-    // ---------- 1) المبيعات → Pivot ----------
-    const salesRows = await readRows(S.files.sales);
-    const dS = detect(salesRows, SPEC.sales);
-    if (!dS) return alert('ملف المبيعات: مش لاقي عمود Stock Code أو Quantity.\nالأعمدة اللي لقيناها: ' + guessHeaders(salesRows));
-
-    const pivot = new Map(); S.skippedCancel = 0;
-    let salesRowsRead = 0;
-    for (const r of salesRows.slice(dS.headerRow+1)){
-      const code = clean(r[dS.map.code]);
-      const tybc = dS.map.tybarcode!==undefined ? clean(r[dS.map.tybarcode]) : '';
-      const key = code || tybc;
-      if (!key) continue;
-      const st = dS.map.status!==undefined ? clean(r[dS.map.status]).toLowerCase() : '';
-      if (st.includes('cancel')) { S.skippedCancel++; continue; }
-      salesRowsRead++;
-      const q = toInt(r[dS.map.qty]) || 1;
-      let p = pivot.get(key);
-      if (!p){ p = { code, tybarcode: tybc, sold:0, name: dS.map.name!==undefined ? clean(r[dS.map.name]) : '' }; pivot.set(key, p); }
-      p.sold += q;
-      if (!p.tybarcode && tybc) p.tybarcode = tybc;
-      if (!p.name && dS.map.name!==undefined) p.name = clean(r[dS.map.name]);
+    // 1. Read Base File
+    const baseRaw = await readExcel(files.base);
+    const baseHeaders = baseRaw[0];
+    const colRef = findCol(baseHeaders, ['الرقم المرجعي']);
+    const colSales = findCol(baseHeaders, ['المبيعات']);
+    const colInvoice = findCol(baseHeaders, ['بنود الفاتورة']);
+    
+    let baseMap = {};
+    for(let i=1; i<baseRaw.length; i++) {
+      let ref = String(baseRaw[i][colRef] || '').trim();
+      if(!ref) continue;
+      if(!baseMap[ref]) baseMap[ref] = { sales: 0, invoice: baseRaw[i][colInvoice] || '' };
+      baseMap[ref].sales += parseFloat(baseRaw[i][colSales] || 0);
     }
 
-    // ---------- 2) أودو ----------
-    const odooRows = await readRows(S.files.odoo);
-    const dO = detect(odooRows, SPEC.odoo);
-    if (!dO) return alert('ملف أودو: مش لاقي عمود الباركود أو الكمية.\nالأعمدة اللي لقيناها: ' + guessHeaders(odooRows));
-    const odooMap = new Map();
-    for (const r of odooRows.slice(dO.headerRow+1)){
-      const bc = clean(r[dO.map.barcode]); if (!bc) continue;
-      putBoth(odooMap, bc, { qty: toNum(r[dO.map.qty]), name: dO.map.name!==undefined ? clean(r[dO.map.name]) : '' });
+    // 2. Read Products (VAT)
+    const prodRaw = await readExcel(files.products);
+    const prodHeaders = prodRaw[0];
+    const pColBar = findCol(prodHeaders, ['Barcode']);
+    const pColVat = findCol(prodHeaders, ['Vat Rate']);
+    let vatMap = {};
+    for(let i=1; i<prodRaw.length; i++) {
+      let bc = String(prodRaw[i][pColBar] || '').trim();
+      let vat = parseFloat(prodRaw[i][pColVat] || 0);
+      if(bc) vatMap[bc] = vat;
     }
 
-    // ---------- 3) الماستر (اختياري) ----------
-    const masterMap = new Map();
-    if (S.files.master){
-      const mRows = await readRows(S.files.master);
-      const dM = detect(mRows, SPEC.master);
-      if (dM){
-        for (const r of mRows.slice(dM.headerRow+1)){
-          const bc = clean(r[dM.map.barcode]); if (!bc) continue;
-          const pieces = dM.map.pieces!==undefined ? toInt(r[dM.map.pieces]) : 0;
-          putBoth(masterMap, bc, {
-            odoo: dM.map.odoo!==undefined ? clean(r[dM.map.odoo]) : '',
-            pieces: pieces > 0 ? pieces : 0,
-            name: dM.map.name!==undefined ? clean(r[dM.map.name]) : ''
-          });
+    // 3. Read Sales (Orders)
+    let salesMap = {};
+    for(let file of files.sales) {
+      const raw = await readExcel(file);
+      // Find header row (usually row 1 or 2)
+      let hIdx = raw.findIndex(r => r.some(c => String(c).includes('Order Number')));
+      if(hIdx === -1) continue;
+      const headers = raw[hIdx];
+      const cOrder = headers.findIndex(h => String(h).includes('Order Number'));
+      const cBar = headers.findIndex(h => String(h).includes('Barcode'));
+      const cAmt = headers.findIndex(h => String(h).includes('Invoice Amount'));
+      
+      for(let i=hIdx+1; i<raw.length; i++) {
+        let order = String(raw[i][cOrder] || '').trim();
+        let bc = String(raw[i][cBar] || '').trim();
+        let amt = parseFloat(raw[i][cAmt] || 0);
+        
+        // VAT Logic
+        let vat = vatMap[bc] || 0;
+        let adjustedAmt = vat === 15 ? amt / 1.15 : amt;
+        
+        if(order) {
+          if(!salesMap[order]) salesMap[order] = 0;
+          salesMap[order] += adjustedAmt;
         }
-      } else warnings.push('ملف الماستر: مش لاقي الأعمدة المطلوبة، هيتم تجاهله.');
-    } else warnings.push('مش رافع الماستر → عدد القطع هيتحسب 1 لكل الأصناف.');
-
-    // ---------- 4) الموردين ----------
-    S.suppliers = [];
-    for (const rowEl of document.querySelectorAll('#supplier-rows .sup-row')){
-      const fileInput = rowEl.querySelector('.sup-file');
-      const nameInput = rowEl.querySelector('.sup-name');
-      if (!fileInput.files.length) continue;
-      const name = clean(nameInput.value) || fileInput.files[0].name;
-      try {
-        const rows = await readRows(fileInput.files[0]);
-        const d = detect(rows, SPEC.sup);
-        if (!d){ warnings.push(`ملف مورد "${name}": مش لاقي عمود الباركود. الأعمدة: ${guessHeaders(rows)}`); continue; }
-        const map = new Map();
-        for (const r of rows.slice(d.headerRow+1)){
-          const bc = clean(r[d.map.barcode]); if (!bc) continue;
-          const qty = d.map.qty!==undefined ? toNum(r[d.map.qty]) : null;
-          if (qty === null || qty > 0) putBoth(map, bc, qty);
-        }
-        S.suppliers.push({ name, map });
-      } catch(err){ warnings.push(`ملف مورد "${name}": فشل القراءة (${err.message})`); }
+      }
     }
 
-    // ---------- 5) الحسابات ----------
-    S.results = [];
-    for (const p of pivot.values()){
-      // الماستر نتبحث فيه بباركود ترينديول (من عمود Barcode في المبيعات)
-      const master = getBoth(masterMap, p.tybarcode) || getBoth(masterMap, p.code);
-      const packQty = master && master.pieces > 0 ? master.pieces : 1;
-      const needed = p.sold * packQty;
+    // 4. Read Cancelled
+    let cancelledSet = new Set();
+    for(let file of files.cancelled) {
+      const raw = await readExcel(file);
+      let hIdx = raw.findIndex(r => r.some(c => String(c).includes('Order Number')));
+      if(hIdx === -1) continue;
+      const headers = raw[hIdx];
+      const cOrder = headers.findIndex(h => String(h).includes('Order Number'));
+      for(let i=hIdx+1; i<raw.length; i++) {
+        let order = String(raw[i][cOrder] || '').trim();
+        if(order) cancelledSet.add(order);
+      }
+    }
 
-      // أودو: Stock Code مباشرة → باركود أودو من الماستر → باركود ترينديول
-      let odoo = getBoth(odooMap, p.code);
-      if (odoo === undefined && master && master.odoo) odoo = getBoth(odooMap, master.odoo);
-      if (odoo === undefined) odoo = getBoth(odooMap, p.tybarcode);
+    // 5. Compare
+    resultData = [];
+    let stats = { total:0, match:0, diff:0, cancelled:0, missing:0 };
+    
+    for(let ref in baseMap) {
+      stats.total++;
+      let baseSales = baseMap[ref].sales;
+      let tSales = salesMap[ref];
+      let status = '';
+      let finalVal = '';
 
-      const ourStock = odoo ? odoo.qty : (odoo === undefined ? null : 0);
-      let status;
-      if (ourStock === null || ourStock === 0) status = 'none';
-      else if (ourStock >= needed) status = 'ok';
-      else status = 'short';
-
-      // الموردين (بالباركودين عشان نغطي كل الحالات)
-      const supHits = []; const seen = new Set();
-      for (const sup of S.suppliers){
-        let v = getBoth(sup.map, p.code);
-        if (v === undefined) v = getBoth(sup.map, p.tybarcode);
-        if (v !== undefined && !seen.has(sup.name)){ seen.add(sup.name); supHits.push({ name: sup.name, qty: v }); }
+      if(tSales !== undefined) {
+        finalVal = tSales.toFixed(2);
+        if(Math.abs(baseSales - tSales) < 0.05) { status = 'متساوي'; stats.match++; }
+        else { status = 'مختلف'; stats.diff++; }
+      } else if(cancelledSet.has(ref)) {
+        status = 'Customer Request';
+        stats.cancelled++;
+      } else {
+        status = 'غير موجود';
+        stats.missing++;
       }
 
-      if (!master && ourStock === null && supHits.length === 0) status = 'unknown';
-
-      S.results.push({
-        tybarcode: p.tybarcode || '',
-        code: p.code,
-        name: p.name || (master && master.name) || (odoo && odoo.name) || '',
-        sold: p.sold, packQty, needed,
-        ourStock, remaining: ourStock === null ? null : ourStock - needed,
-        status, suppliers: supHits
+      resultData.push({
+        'الرقم المرجعي': ref,
+        'بنود الفاتورة': baseMap[ref].invoice,
+        'مبيعات (جدوى)': baseSales.toFixed(2),
+        'مبيعات (ترينديول)': finalVal,
+        'الحالة': status
       });
     }
 
-    const order = { none:0, short:1, unknown:2, ok:3 };
-    S.results.sort((a,b) => order[a.status] - order[b.status]);
+    // Update UI
+    document.getElementById('stat-total').textContent = stats.total;
+    document.getElementById('stat-match').textContent = stats.match;
+    document.getElementById('stat-diff').textContent = stats.diff;
+    document.getElementById('stat-cancelled').textContent = stats.cancelled;
+    
+    // Render Table (First 50)
+    const thead = document.getElementById('table-headers');
+    const tbody = document.getElementById('table-body');
+    thead.innerHTML = Object.keys(resultData[0]).map(k => `<th>${k}</th>`).join('');
+    tbody.innerHTML = resultData.slice(0, 50).map(row => {
+      let statusClass = 'status-missing';
+      if(row['الحالة'] === 'متساوي') statusClass = 'status-match';
+      if(row['الحالة'] === 'مختلف') statusClass = 'status-diff';
+      if(row['الحالة'] === 'Customer Request') statusClass = 'status-cancelled';
+      return `<tr>${Object.values(row).map(v => `<td>${v}</td>`).join('')}<td><span class="${statusClass}">${row['الحالة']}</span></td></tr>`; // Wait, status is already in values. Fix:
+    }).map(rowStr => rowStr.replace(/<td>Customer Request<\/td>|<td>متساوي<\/td>|<td>مختلف<\/td>|<td>غير موجود<\/td>/, '')).join(''); 
+    // Simplified render:
+    tbody.innerHTML = resultData.slice(0, 50).map(row => {
+       let sClass = row['الحالة']==='متساوي'?'status-match':row['الحالة']==='مختلف'?'status-diff':row['الحالة']==='Customer Request'?'status-cancelled':'status-missing';
+       return `<tr><td>${row['الرقم المرجعي']}</td><td>${row['بنود الفاتورة']}</td><td>${row['مبيعات (جدوى)']}</td><td>${row['مبيعات (ترينديول)']}</td><td><span class="${sClass}">${row['الحالة']}</span></td></tr>`;
+    }).join('');
 
-    // ---------- 6) عرض ----------
-    document.getElementById('sec-results').classList.remove('hidden');
-    document.getElementById('read-summary').innerHTML =
-      `📖 ملخص القراءة: المبيعات ${salesRowsRead.toLocaleString()} صف → ${pivot.size.toLocaleString()} صنف | أودو ${odooMap.size.toLocaleString()} باركود | الماستر ${masterMap.size.toLocaleString()} | موردين: ${S.suppliers.length}`;
-    document.getElementById('read-summary').classList.remove('hidden');
-    const w = document.getElementById('warnings');
-    if (warnings.length){ w.innerHTML = '⚠️ ' + warnings.join('<br>⚠️ '); w.classList.remove('hidden'); }
-    else w.classList.add('hidden');
-    document.getElementById('note-cancel').textContent = S.skippedCancel ? `تم تجاهل ${S.skippedCancel} صف طلبات ملغية.` : '';
-    renderStats(); renderTable();
+    document.getElementById('results-card').classList.remove('hidden');
+    document.getElementById('btn-process').textContent = '🚀 ابدأ المعالجة';
+    document.getElementById('btn-process').disabled = false;
 
-  } catch(err){ alert('خطأ في المعالجة: ' + err.message); }
-}
-
-// ============================================================
-// RENDER + EXPORT
-// ============================================================
-const STATUS_META = {
-  ok:      { badge:'b-ok',    label:'✅ متوفر عندنا' },
-  short:   { badge:'b-short', label:'⚠️ مش كفاية' },
-  none:    { badge:'b-none',  label:'❌ مش في مخزوننا' },
-  unknown: { badge:'b-unk',   label:'❓ مش متعرف عليه' }
-};
-
-function getVisible(){
-  const q = document.getElementById('flt-search').value.toLowerCase().trim();
-  return S.results.filter(r => {
-    if (S.view==='none' && r.status!=='none') return false;
-    if (S.view==='short' && r.status!=='short') return false;
-    if (S.view==='unknown' && r.status!=='unknown') return false;
-    if (S.view==='withsup' && !(r.status!=='ok' && r.suppliers.length>0)) return false;
-    if (q && !(`${r.tybarcode} ${r.code} ${r.name}`.toLowerCase().includes(q))) return false;
-    return true;
-  });
-}
-
-function renderStats(){
-  const c = t => S.results.filter(r=>r.status===t).length;
-  document.getElementById('s-items').textContent = S.results.length.toLocaleString();
-  document.getElementById('s-pieces').textContent = S.results.reduce((a,r)=>a+r.sold,0).toLocaleString();
-  document.getElementById('s-ok').textContent = c('ok').toLocaleString();
-  document.getElementById('s-short').textContent = c('short').toLocaleString();
-  document.getElementById('s-none').textContent = c('none').toLocaleString();
-  document.getElementById('s-unk').textContent = c('unknown').toLocaleString();
-  document.getElementById('s-sup').textContent = S.results.filter(r=>r.status!=='ok' && r.suppliers.length>0).length.toLocaleString();
-}
-
-function renderTable(){
-  const visible = getVisible();
-  const limit = 500;
-  const tbody = document.getElementById('tbody');
-  if (!visible.length){
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#9ca3af;padding:20px;">لا توجد نتائج</td></tr>';
-    document.getElementById('tbl-info').textContent = '';
-    return;
+  } catch(e) {
+    alert('Error: ' + e.message);
+    document.getElementById('btn-process').textContent = '🚀 ابدأ المعالجة';
+    document.getElementById('btn-process').disabled = false;
   }
-  tbody.innerHTML = visible.slice(0,limit).map(r => {
-    const m = STATUS_META[r.status];
-    const supText = r.suppliers.length
-      ? r.suppliers.map(s => s.qty!==null ? `${s.name} (${s.qty})` : s.name).join('، ')
-      : '—';
-    return `<tr>
-      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${r.tybarcode || '—'}</td>
-      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${r.code || '—'}</td>
-      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.name || '—'}</td>
-      <td style="text-align:center;font-weight:700;">${r.sold}</td>
-      <td style="text-align:center;">${r.packQty}</td>
-      <td style="text-align:center;">${r.needed}</td>
-      <td style="text-align:center;">${r.ourStock===null ? '<span style="color:#ef4444;">—</span>' : r.ourStock}</td>
-      <td style="text-align:center;font-weight:700;color:${r.remaining!==null && r.remaining<0 ? '#ef4444' : '#10b981'}">${r.remaining===null ? '—' : r.remaining}</td>
-      <td><span class="badge ${m.badge}">${m.label}</span></td>
-      <td style="font-size:11px;">${supText}</td>
-    </tr>`;
-  }).join('');
-  document.getElementById('tbl-info').textContent = visible.length>limit
-    ? `عرض ${limit} من ${visible.length.toLocaleString()}`
-    : `عرض ${visible.length.toLocaleString()} صنف`;
 }
 
-function setView(v, btn){
-  S.view = v;
-  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
-  btn.classList.add('active');
-  renderTable();
-}
-
-function exportResults(){
-  const visible = getVisible();
-  if (!visible.length) return alert('لا توجد نتائج للتصدير');
-  const data = visible.map(r => ({
-    'Barcode': r.tybarcode || '',
-    'Stock Code': r.code,
-    'Product Name': r.name,
-    'إجمالي المباع': r.sold,
-    'عدد القطع': r.packQty,
-    'قطع مطلوبة': r.needed,
-    'مخزوننا': r.ourStock===null ? '' : r.ourStock,
-    'المتبقي': r.remaining===null ? '' : r.remaining,
-    'الحالة': STATUS_META[r.status].label,
-    'متوفر عند موردين': r.suppliers.map(s=>s.qty!==null?`${s.name} (${s.qty})`:s.name).join('، ')
-  }));
-  const ws = XLSX.utils.json_to_sheet(data);
-  // أول عمودين (الباركودات) يطلعوا Text بالأصفار زي ما هي
-  if (ws['!ref']){
-    const range = XLSX.utils.decode_range(ws['!ref']);
-    for (let r=1; r<=range.e.r; r++){
-      for (const c of [0,1]){
-        const ref = XLSX.utils.encode_cell({r, c});
-        if (ws[ref]) { ws[ref].t='s'; ws[ref].v = String(ws[ref].v); }
-      }
-    }
-  }
+function downloadResult() {
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Sales Check');
-  XLSX.writeFile(wb, `Sales_Check_${dateStr()}.xlsx`);
+  const ws = XLSX.utils.json_to_sheet(resultData);
+  XLSX.utils.book_append_sheet(wb, ws, 'المقارنة');
+  XLSX.writeFile(wb, `Sales_Check_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 </script>
 </body>
