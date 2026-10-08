@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>مزامنة مورد</title>
+<title>مزامنة المورد - Trendyol Updater</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
@@ -18,413 +18,217 @@
   .btn{padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px}
   .btn-primary{background:#6366f1;color:#fff}.btn-primary:hover{background:#4f46e5}
   .btn-success{background:#10b981;color:#fff}.btn-success:hover{background:#059669}
-  .btn-outline{background:#fff;border:1px solid #d1d5db;color:#374151}.btn-outline:hover{background:#f9fafb}
-  .btn-sm{padding:5px 10px;font-size:12px}
-  .stat-box{text-align:center;padding:12px;border-radius:8px;background:#f8fafc}
-  .stat-num{font-size:22px;font-weight:700}
-  .stat-lbl{font-size:10px;color:#6b7280;margin-top:2px}
-  table{width:100%;border-collapse:collapse;font-size:12px}
-  th{background:#f8fafc;padding:8px;text-align:right;border-bottom:2px solid #e2e8f0;position:sticky;top:0;font-weight:600;white-space:nowrap}
-  td{padding:6px 8px;border-bottom:1px solid #f1f5f9}
-  tr:hover{background:#f8fafc}
-  .badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600}
-  .b-red{background:#fee2e2;color:#991b1b}.b-green{background:#dcfce7;color:#166534}
-  .b-blue{background:#dbeafe;color:#1d4ed8}.b-gray{background:#f1f5f9;color:#475569}
-  .table-wrap{max-height:400px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px}
-  .hidden{display:none}
-  .note-box{margin-top:10px;padding:10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:11px;color:#166534}
-  .warn-box{margin-top:10px;padding:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:12px;color:#9a3412}
-  .name-input{border:1px solid #d1d5db;border-radius:6px;padding:8px 12px;font-size:13px;width:200px}
+  .input-field{width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;margin-top:5px}
 </style>
 </head>
-<body>
-<div style="max-width:1200px;margin:0 auto;padding:16px;">
+<body class="min-h-screen p-6">
 
+<div style="max-width:1000px;margin:0 auto;">
+
+  <!-- شريط التنقل -->
   <div class="topnav">
-    <a href="index.html">📦 تحديث المخزون</a> | <a href="sales-check.html">🛒 فحص المبيعات</a> | <span class="current">🏬 مزامنة مورد</span>
+    <a href="index.html">🏠 الرئيسية</a> | 
+    <a href="inventory-update.html">📦 تحديث المخزون</a> | 
+    <a href="sales-check.html"> فحص المبيعات</a> | 
+    <span class="current">🏬 مزامنة مورد</span>
   </div>
 
-  <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;">🏬 مزامنة مورد</h1>
-  <p style="text-align:center;font-size:13px;color:#64748b;margin-bottom:16px;">قارن الماستر بملف مورد جديد وحدّث الروابط تلقائيًا</p>
+  <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;margin-bottom:20px;"> مزامنة بيانات الموردين</h1>
 
-  <!-- ================= UPLOADS ================= -->
   <div class="card">
-    <h3 style="font-size:15px;font-weight:700;margin:0 0 12px;">📂 رفع الملفات</h3>
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">📂 رفع الملفات</h3>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      
       <div class="dropzone" id="dz-master" onclick="document.getElementById('f-master').click()">
-        <input type="file" id="f-master" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'master')">
+        <input type="file" id="f-master" accept=".xlsx,.xls" style="display:none" onchange="pickFile(this,'master')">
         <div style="font-size:24px;">📋</div>
-        <div style="font-weight:600;font-size:13px;margin:4px 0;">الماستر (قاعدة البيانات الحالية)</div>
-        <div id="st-master" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">ملف الماستر (القاعدة)</div>
+        <div id="st-master" style="font-size:11px;color:#6b7280;">اضغط للرفع</div>
       </div>
-      <div class="dropzone" id="dz-sup" onclick="document.getElementById('f-sup').click()">
-        <input type="file" id="f-sup" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'sup')">
+
+      <div class="dropzone" id="dz-supplier" onclick="document.getElementById('f-supplier').click()">
+        <input type="file" id="f-supplier" accept=".xlsx,.xls" style="display:none" onchange="pickFile(this,'supplier')">
         <div style="font-size:24px;">🏬</div>
-        <div style="font-weight:600;font-size:13px;margin:4px 0;">ملف المورد الجديد</div>
-        <div id="st-sup" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">ملف المورد</div>
+        <div id="st-supplier" style="font-size:11px;color:#6b7280;">اضغط للرفع</div>
       </div>
+
     </div>
 
-    <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <label style="font-size:13px;font-weight:700;">اسم المورد:</label>
-      <input type="text" id="sup-name" class="name-input" placeholder="مثال: دلتا">
+    <div style="margin-top:15px;">
+      <label style="font-size:13px;font-weight:600;color:#374151;">اسم المورد (اختياري):</label>
+      <p style="font-size:11px;color:#6b7280;margin-bottom:5px;">لو ملف المورد فيه عمود "المورد" أو "Supplier" هيتم استخدامه تلقائياً. لو لا، اكتب الاسم هنا ليتم تطبيقه على كل المنتجات المشتركة.</p>
+      <input type="text" id="supplier-name-input" class="input-field" placeholder="مثال: شركة الأروبة">
     </div>
 
-    <div class="note-box">
-      📌 <strong>الأعمدة المقبولة في ملف المورد</strong> (لو ملفك مختلف، الأداة بتدور على أي اسم من دول):<br>
-      • الباركود (إجباري): Barcode / Stock Code / باركود / Code / SKU / Item Code / EAN<br>
-      • الاسم: Product / Product Name / ProductArabic / الاسم<br>
-      • السعر: NetPrice / Price / السعر<br>
-      • الكمية: SumPacks / Quantity / Qty / الكمية
+    <div style="text-align:center;margin-top:20px;">
+      <button class="btn btn-primary" id="btn-process" disabled onclick="processSync()" style="padding:10px 30px;font-size:14px;">🔄 بدء المزامنة</button>
     </div>
-
-    <div style="text-align:center;margin-top:14px;">
-      <button class="btn btn-primary" onclick="processAll()">🔄 معالجة</button>
-    </div>
-    <div id="warnings" class="warn-box hidden"></div>
   </div>
 
-  <!-- ================= RESULTS ================= -->
-  <div id="sec-results" class="hidden">
-    <div class="card">
-      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;">
-        <div class="stat-box"><div class="stat-num" style="color:#6366f1" id="s-master">0</div><div class="stat-lbl">أصناف الماستر</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:#334155" id="s-file">0</div><div class="stat-lbl">أصناف ملف المورد</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:#ef4444" id="s-removed">0</div><div class="stat-lbl">❌ اتشال من المورد</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:#f59e0b" id="s-added">0</div><div class="stat-lbl">➕ اتضاف له المورد</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:#10b981" id="s-new">0</div><div class="stat-lbl">⭐ جديدة على الماستر</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:#64748b" id="s-stable">0</div><div class="stat-lbl">ثابتة</div></div>
-      </div>
+  <div class="card hidden" id="results-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+      <h3 style="font-size:15px;font-weight:700;">📊 نتيجة المزامنة</h3>
+      <button class="btn btn-success" id="btn-download" onclick="downloadResult()">💾 تحميل Excel</button>
     </div>
-
-    <!-- Category 1 -->
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <h3 style="font-size:14px;font-weight:700;margin:0;color:#ef4444;">❌ الفئة 1: مكتوب عليه <span id="lbl-sup1"></span> في الماستر ومش موجود في ملفه الجديد</h3>
-        <button class="btn btn-outline btn-sm" onclick="exportCat('removed')">📥 تصدير التقرير</button>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div style="background:#dcfce7;padding:15px;border-radius:8px;text-align:center;">
+        <div style="font-size:24px;font-weight:700;color:#166534" id="stat-updated">0</div>
+        <div style="font-size:12px;color:#166534">تم تحديثه في الماستر</div>
       </div>
-      <p style="font-size:11px;color:#6b7280;margin-bottom:8px;">اتمسح منهم <span id="lbl-sup1b"></span> في الماستر المحدث تلقائيًا. اللي مش عندنا في المخزون → مرشح للتصفير على ترينديول.</p>
-      <div class="table-wrap">
-        <table><thead><tr><th>Barcode</th><th>الاسم</th><th>المورد بعد الحذف</th><th>مخزوننا (أودو)</th><th>كمية ترينديول</th><th>التوصية</th></tr></thead>
-        <tbody id="tbody-removed"></tbody></table>
+      <div style="background:#fef3c7;padding:15px;border-radius:8px;text-align:center;">
+        <div style="font-size:24px;font-weight:700;color:#92400e" id="stat-new">0</div>
+        <div style="font-size:12px;color:#92400e">منتجات جديدة (مش في الماستر)</div>
       </div>
-    </div>
-
-    <!-- Category 2 -->
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <h3 style="font-size:14px;font-weight:700;margin:0;color:#f59e0b;">➕ الفئة 2: موجود في الملف وربطناه بالماستر (اتضاف له المورد)</h3>
-        <button class="btn btn-outline btn-sm" onclick="exportCat('added')">📥 تصدير</button>
-      </div>
-      <div class="table-wrap">
-        <table><thead><tr><th>Barcode</th><th>الاسم</th><th>المورد قبل</th><th>المورد بعد</th></tr></thead>
-        <tbody id="tbody-added"></tbody></table>
-      </div>
-    </div>
-
-    <!-- Category 3 -->
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <h3 style="font-size:14px;font-weight:700;margin:0;color:#10b981;">⭐ الفئة 3: جديدة خالص (هنضيفها للماستر بمورد = <span id="lbl-sup3"></span>)</h3>
-        <button class="btn btn-outline btn-sm" onclick="exportCat('new')">📥 تصدير</button>
-      </div>
-      <div class="table-wrap">
-        <table><thead><tr><th>Barcode</th><th>الاسم</th><th>الاسم (عربي)</th><th>السعر</th><th>الكمية عند المورد</th></tr></thead>
-        <tbody id="tbody-new"></tbody></table>
-      </div>
-    </div>
-
-    <!-- Updated Master -->
-    <div class="card" style="text-align:center;">
-      <button class="btn btn-success" onclick="exportUpdatedMaster()">📋 تحميل الماستر المحدث (كل التعديلات + الجديدة)</button>
-      <p style="font-size:11px;color:#6b7280;margin-top:6px;">بيطلع بنفس أعمدة الماستر بتاعك عشان يشتغل مباشرة في أداة تحديث المخزون</p>
     </div>
   </div>
+
 </div>
 
 <script>
-// ============================================================
-// STATE + HELPERS
-// ============================================================
-const S = { files:{ master:null, sup:null } };
-let M = null;          // { headers, rows(modified), map }
-let CAT = { removed:[], added:[], newItems:[], stable:0 };
-let SUP = { name:'', map:new Map(), fileCount:0 };
+let files = { master:null, supplier:null };
+let updatedMasterData = [];
+let newProductsData = [];
 
-const clean = v => v ? String(v).trim() : '';
-const toNum = v => { if(!v) return 0; const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n)?0:n; };
-const norm = bc => { if(!bc) return ''; const s = String(bc).trim(); return s.replace(/^0+/,'') || s; };
-const splitSup = s => s ? s.split(/[,،]/).map(x=>x.trim()).filter(Boolean) : [];
-const dateStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
-
-const SPEC = {
-  master: {
-    barcode: { a:['barcode','trendyol barcode'], r:1 },
-    odoo:    { a:['barcode odoo','باركود أودو','odoo barcode'] },
-    supplier:{ a:['المورد','supplier'] },
-    name:    { a:['product name','الاسم'] },
-    odooQty: { a:['odoo qty','الكمية في اليد','اودو'] },
-    tyStock: { a:['stock (trendyol)','stock'] }
-  },
-  sup: {
-    barcode: { a:['barcode','stock code','باركود','code','sku','item code','ean','product code'], r:1 },
-    name:    { a:['product name','product','الاسم'] },
-    nameAr:  { a:['productarabic','الاسم العربي'] },
-    price:   { a:['netprice','net price','price','السعر'] },
-    qty:     { a:['sumpacks','quantity','qty','الكمية','stock'] }
+function pickFile(input, type) {
+  files[type] = input.files[0];
+  if(files[type]) {
+    document.getElementById('st-'+type).textContent = `✅ ${files[type].name}`;
+    document.getElementById('dz-'+type).classList.add('loaded');
+    document.getElementById('btn-process').disabled = !(files.master && files.supplier);
   }
-};
-
-function pickFile(input, type){
-  const f = input.files[0]; if(!f) return;
-  S.files[type] = f;
-  document.getElementById('dz-'+type).classList.add('loaded');
-  document.getElementById('st-'+type).textContent = '✅ ' + f.name;
 }
 
-function readRows(file){
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = e => {
-      try {
-        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array', raw:false });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        res(XLSX.utils.sheet_to_json(ws, { header:1, defval:'' }));
-      } catch(err){ rej(err); }
+async function readExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''}));
     };
-    r.onerror = () => rej(new Error('فشل قراءة الملف'));
-    r.readAsArrayBuffer(file);
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
   });
 }
 
-function detect(rows, spec){
-  for (let i=0; i<Math.min(rows.length,10); i++){
-    const cells = (rows[i]||[]).map(c => String(c).toLowerCase().trim().replace(/\s+/g,' '));
-    const map = {}; let ok = true;
-    for (const key in spec){
-      let col = -1;
-      for (const a of spec[key].a){
-        const ci = cells.indexOf(a);
-        if (ci >= 0){ col = ci; break; }
-      }
-      if (col >= 0) map[key] = col;
-      else if (spec[key].r){ ok = false; break; }
-    }
-    if (ok && Object.keys(map).length) return { headerRow:i, map };
+function findCol(headers, names) {
+  for(let n of names) {
+    let idx = headers.findIndex(h => String(h).toLowerCase().trim() === n.toLowerCase().trim());
+    if(idx !== -1) return idx;
   }
-  return null;
+  for(let n of names) {
+    let idx = headers.findIndex(h => String(h).toLowerCase().includes(n.toLowerCase()));
+    if(idx !== -1) return idx;
+  }
+  return -1;
 }
 
-function guessHeaders(rows){
-  let best = [];
-  for (let i=0; i<Math.min(rows.length,5); i++){
-    const vals = (rows[i]||[]).map(c=>clean(c)).filter(Boolean);
-    if (vals.length > best.length) best = vals;
-  }
-  return best.slice(0,10).join(' | ');
-}
-
-// ============================================================
-// PROCESS
-// ============================================================
-async function processAll(){
-  const supName = clean(document.getElementById('sup-name').value);
-  if (!supName) return alert('اكتب اسم المورد الأول');
-  if (!S.files.master || !S.files.sup) return alert('ارفع الماستر وملف المورد');
+async function processSync() {
+  document.getElementById('btn-process').textContent = '⏳ جاري العمل...';
+  document.getElementById('btn-process').disabled = true;
 
   try {
-    // ---------- الماستر ----------
-    const mRows = await readRows(S.files.master);
-    const dM = detect(mRows, SPEC.master);
-    if (!dM) return alert('الماستر: مش لاقي عمود Barcode.\nالأعمدة: ' + guessHeaders(mRows));
-
-    M = {
-      headers: mRows[dM.headerRow],
-      rows: mRows.slice(dM.headerRow+1).map(r=>r.slice()),
-      map: dM.map
-    };
-
-    // ---------- ملف المورد ----------
-    const sRows = await readRows(S.files.sup);
-    const dS = detect(sRows, SPEC.sup);
-    if (!dS) return alert('ملف المورد: مش لاقي عمود الباركود.\nالأعمدة: ' + guessHeaders(sRows));
-
-    SUP.name = supName; SUP.map = new Map(); SUP.fileCount = 0;
-    for (const r of sRows.slice(dS.headerRow+1)){
-      const bc = clean(r[dS.map.barcode]); if (!bc) continue;
-      if (SUP.map.has(norm(bc))) continue;
-      SUP.fileCount++;
-      SUP.map.set(norm(bc), {
-        raw: bc,
-        name: dS.map.name!==undefined ? clean(r[dS.map.name]) : '',
-        nameAr: dS.map.nameAr!==undefined ? clean(r[dS.map.nameAr]) : '',
-        price: dS.map.price!==undefined ? toNum(r[dS.map.price]) : null,
-        qty: dS.map.qty!==undefined ? toNum(r[dS.map.qty]) : null
-      });
+    const masterRaw = await readExcel(files.master);
+    const supplierRaw = await readExcel(files.supplier);
+    
+    const mHeaders = masterRaw[0];
+    const sHeaders = supplierRaw[0];
+    
+    const mColBar = findCol(mHeaders, ['Barcode', 'باركود']);
+    const mColSup = findCol(mHeaders, ['المورد', 'Supplier', 'Vendor']);
+    
+    const sColBar = findCol(sHeaders, ['Barcode', 'باركود']);
+    const sColSup = findCol(sHeaders, ['المورد', 'Supplier', 'Vendor', 'Supplier Name']);
+    
+    if(mColBar === -1 || sColBar === -1) {
+      alert('لم يتم العثور على عمود Barcode في أحد الملفات!');
+      return;
     }
 
-    // ---------- التصنيف ----------
-    CAT = { removed:[], added:[], newItems:[], stable:0 };
-    const masterCodes = new Set();
-    for (const r of M.rows){
-      const bc = clean(r[M.map.barcode]);
-      const od = M.map.odoo!==undefined ? clean(r[M.map.odoo]) : '';
-      if (bc) masterCodes.add(norm(bc));
-      if (od) masterCodes.add(norm(od));
+    // Build Supplier Map
+    let supplierMap = {};
+    for(let i=1; i<supplierRaw.length; i++) {
+      let bc = String(supplierRaw[i][sColBar] || '').trim();
+      if(!bc) continue;
+      let supName = sColSup !== -1 ? String(supplierRaw[i][sColSup] || '') : '';
+      supplierMap[bc] = supName;
     }
 
-    const seenInMaster = new Set();
+    const manualSupplierName = document.getElementById('supplier-name-input').value.trim();
+    let updatedCount = 0;
+    updatedMasterData = [];
+    newProductsData = [];
 
-    M.rows.forEach((r, i) => {
-      const bc = clean(r[M.map.barcode]); if (!bc) return;
-      const od = M.map.odoo!==undefined ? clean(r[M.map.odoo]) : '';
-      const supRaw = M.map.supplier!==undefined ? clean(r[M.map.supplier]) : '';
-      const parts = splitSup(supRaw);
-      const hasSup = parts.includes(supName);
-      const inFile = SUP.map.has(norm(bc)) || (od && SUP.map.has(norm(od)));
-      const item = SUP.map.get(norm(bc)) || (od ? SUP.map.get(norm(od)) : null);
+    // 1. Process Master (Update existing)
+    for(let i=1; i<masterRaw.length; i++) {
+      let rowObj = {};
+      mHeaders.forEach((h, idx) => rowObj[h] = masterRaw[i][idx]);
+      
+      let bc = String(masterRaw[i][mColBar] || '').trim();
+      if(!bc) { updatedMasterData.push(rowObj); continue; }
 
-      if (hasSup && inFile){ CAT.stable++; seenInMaster.add(item ? item.raw : bc); return; }
-
-      if (hasSup && !inFile){
-        // فئة 1: امسح المورد
-        const newParts = parts.filter(p => p !== supName);
-        if (M.map.supplier!==undefined) M.rows[i][M.map.supplier] = newParts.join('، ');
-        const ourRaw = M.map.odooQty!==undefined ? clean(r[M.map.odooQty]) : '';
-        const ourStock = ourRaw === '' ? null : toNum(ourRaw);
-        const tyStock = M.map.tyStock!==undefined ? toNum(r[M.map.tyStock]) : 0;
-        CAT.removed.push({
-          barcode: bc,
-          name: M.map.name!==undefined ? clean(r[M.map.name]) : '',
-          supplierAfter: newParts.join('، '),
-          ourStock, tyStock,
-          rec: (ourStock === null || ourStock === 0) ? 'مش عندنا → مرشح للتصفير على ترينديول' : 'عندنا مخزون → راجع قبل التصفير'
-        });
-        return;
+      if(supplierMap.hasOwnProperty(bc)) {
+        // Match found! Update Supplier column
+        let newSup = supplierMap[bc];
+        if(!newSup && manualSupplierName) newSup = manualSupplierName;
+        
+        if(newSup) {
+          // Find the key to update (use original header name)
+          let keyToUpdate = mColSup !== -1 ? mHeaders[mColSup] : (mHeaders.includes('المورد') ? 'المورد' : 'المورد');
+          rowObj[keyToUpdate] = newSup;
+          updatedCount++;
+        }
       }
-
-      if (!hasSup && inFile){
-        // فئة 2: ضيف المورد
-        const newParts = parts.concat([supName]);
-        if (M.map.supplier!==undefined) M.rows[i][M.map.supplier] = newParts.join('، ');
-        CAT.added.push({
-          barcode: bc,
-          name: M.map.name!==undefined ? clean(r[M.map.name]) : '',
-          before: supRaw || '—',
-          after: newParts.join('، ')
-        });
-        if (item) seenInMaster.add(item.raw);
-        return;
-      }
-    });
-
-    // فئة 3: في ملف المورد ومش في الماستر خالص
-    for (const item of SUP.map.values()){
-      if (masterCodes.has(norm(item.raw))) continue;
-      CAT.newItems.push(item);
-      // ضيف صف جديد في الماستر
-      const newRow = new Array(M.headers.length).fill('');
-      const idx = {};
-      M.headers.forEach((h, i2) => { idx[String(h).toLowerCase().trim()] = i2; });
-      if (idx['barcode'] !== undefined) newRow[idx['barcode']] = item.raw;
-      if (idx['barcode odoo'] !== undefined) newRow[idx['barcode odoo']] = item.raw;
-      if (idx['product name'] !== undefined) newRow[idx['product name']] = item.name || item.nameAr;
-      if (idx['المورد'] !== undefined) newRow[idx['المورد']] = supName;
-      if (item.price !== null){
-        if (idx['original (list) price'] !== undefined) newRow[idx['original (list) price']] = item.price;
-        if (idx['trendyol sale price'] !== undefined) newRow[idx['trendyol sale price']] = item.price;
-      }
-      if (idx['stock (trendyol)'] !== undefined) newRow[idx['stock (trendyol)']] = 0;
-      if (idx['hold stock'] !== undefined) newRow[idx['hold stock']] = 'FALSE';
-      M.rows.push(newRow);
+      updatedMasterData.push(rowObj);
     }
 
-    // ---------- عرض ----------
-    document.getElementById('sec-results').classList.remove('hidden');
-    document.getElementById('lbl-sup1').textContent = supName;
-    document.getElementById('lbl-sup1b').textContent = supName;
-    document.getElementById('lbl-sup3').textContent = supName;
-    document.getElementById('s-master').textContent = M.rows.length.toLocaleString();
-    document.getElementById('s-file').textContent = SUP.fileCount.toLocaleString();
-    document.getElementById('s-removed').textContent = CAT.removed.length.toLocaleString();
-    document.getElementById('s-added').textContent = CAT.added.length.toLocaleString();
-    document.getElementById('s-new').textContent = CAT.newItems.length.toLocaleString();
-    document.getElementById('s-stable').textContent = CAT.stable.toLocaleString();
-
-    renderCat('removed', CAT.removed, r => `<tr>
-      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${r.barcode}</td>
-      <td>${r.name || '—'}</td><td>${r.supplierAfter || '—'}</td>
-      <td style="text-align:center;">${r.ourStock === null ? '—' : r.ourStock}</td>
-      <td style="text-align:center;">${r.tyStock}</td>
-      <td><span class="badge ${r.ourStock === null || r.ourStock === 0 ? 'b-red' : 'b-gray'}">${r.rec}</span></td>
-    </tr>`);
-
-    renderCat('added', CAT.added, r => `<tr>
-      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${r.barcode}</td>
-      <td>${r.name || '—'}</td><td>${r.before}</td><td style="font-weight:700;">${r.after}</td>
-    </tr>`);
-
-    renderCat('new', CAT.newItems, r => `<tr>
-      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${r.raw}</td>
-      <td>${r.name || '—'}</td><td>${r.nameAr || '—'}</td>
-      <td style="text-align:center;">${r.price === null ? '—' : r.price}</td>
-      <td style="text-align:center;">${r.qty === null ? '—' : r.qty}</td>
-    </tr>`);
-
-  } catch(err){ alert('خطأ في المعالجة: ' + err.message); }
-}
-
-function renderCat(id, arr, renderer){
-  const tbody = document.getElementById('tbody-' + id);
-  if (!arr.length){ tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:16px;">لا توجد أصناف</td></tr>'; return; }
-  tbody.innerHTML = arr.slice(0,300).map(renderer).join('');
-}
-
-// ============================================================
-// EXPORTS
-// ============================================================
-function protectBarcodeCols(ws, headers){
-  if (!ws['!ref']) return;
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  const cols = [];
-  headers.forEach((h, c) => { if (String(h).toLowerCase().includes('barcode')) cols.push(c); });
-  for (let r=1; r<=range.e.r; r++){
-    for (const c of cols){
-      const ref = XLSX.utils.encode_cell({r, c});
-      if (ws[ref]) { ws[ref].t='s'; ws[ref].v = String(ws[ref].v); }
+    // 2. Find New Products (In Supplier but not in Master)
+    let masterBarcodes = new Set();
+    for(let i=1; i<masterRaw.length; i++) {
+      let bc = String(masterRaw[i][mColBar] || '').trim();
+      if(bc) masterBarcodes.add(bc);
     }
+
+    for(let bc in supplierMap) {
+      if(!masterBarcodes.has(bc)) {
+        let newObj = { 'Barcode': bc };
+        // Try to add other columns from supplier file if possible, or just Barcode + Supplier
+        let supName = supplierMap[bc];
+        if(!supName && manualSupplierName) supName = manualSupplierName;
+        newObj['المورد'] = supName;
+        newObj['ملاحظة'] = 'منتج جديد من ملف المورد';
+        newProductsData.push(newObj);
+      }
+    }
+
+    // Update UI
+    document.getElementById('stat-updated').textContent = updatedCount;
+    document.getElementById('stat-new').textContent = newProductsData.length;
+    document.getElementById('results-card').classList.remove('hidden');
+    document.getElementById('btn-process').textContent = '🔄 بدء المزامنة';
+    document.getElementById('btn-process').disabled = false;
+
+  } catch(e) {
+    alert('Error: ' + e.message);
+    document.getElementById('btn-process').textContent = '🔄 بدء المزامنة';
+    document.getElementById('btn-process').disabled = false;
   }
 }
 
-function exportCat(type){
-  let data, name;
-  if (type==='removed'){
-    if (!CAT.removed.length) return alert('لا توجد أصناف');
-    data = CAT.removed.map(r => ({ 'Barcode': r.barcode, 'Product Name': r.name, 'المورد بعد الحذف': r.supplierAfter, 'مخزوننا (أودو)': r.ourStock === null ? '' : r.ourStock, 'كمية ترينديول': r.tyStock, 'التوصية': r.rec }));
-    name = `Removed_From_${SUP.name}_${dateStr()}.xlsx`;
-  } else if (type==='added'){
-    if (!CAT.added.length) return alert('لا توجد أصناف');
-    data = CAT.added.map(r => ({ 'Barcode': r.barcode, 'Product Name': r.name, 'المورد قبل': r.before, 'المورد بعد': r.after }));
-    name = `Added_To_${SUP.name}_${dateStr()}.xlsx`;
-  } else {
-    if (!CAT.newItems.length) return alert('لا توجد أصناف');
-    data = CAT.newItems.map(r => ({ 'Barcode': r.raw, 'Product Name': r.name, 'ProductArabic': r.nameAr, 'NetPrice': r.price === null ? '' : r.price, 'SumPacks': r.qty === null ? '' : r.qty }));
-    name = `New_From_${SUP.name}_${dateStr()}.xlsx`;
-  }
-  const ws = XLSX.utils.json_to_sheet(data);
-  protectBarcodeCols(ws, Object.keys(data[0]));
+function downloadResult() {
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Data');
-  XLSX.writeFile(wb, name);
-}
-
-function exportUpdatedMaster(){
-  if (!M) return alert('اعمل معالجة الأول');
-  const ws = XLSX.utils.aoa_to_sheet([M.headers, ...M.rows]);
-  protectBarcodeCols(ws, M.headers);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Master');
-  XLSX.writeFile(wb, `Master_SupplierSync_${dateStr()}.xlsx`);
+  
+  // Sheet 1: Updated Master
+  const ws1 = XLSX.utils.json_to_sheet(updatedMasterData);
+  XLSX.utils.book_append_sheet(wb, ws1, 'الماستر المحدث');
+  
+  // Sheet 2: New Products
+  const ws2 = XLSX.utils.json_to_sheet(newProductsData);
+  XLSX.utils.book_append_sheet(wb, ws2, 'غير موجود في الماستر');
+  
+  XLSX.writeFile(wb, `Supplier_Sync_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 </script>
 </body>
