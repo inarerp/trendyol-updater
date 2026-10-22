@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مطابقة صور المنتجات مع المبيعات</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<style>
+  body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f0f2f5}
+  .topnav{text-align:center;margin-bottom:12px;font-size:13px}
+  .topnav a{color:#4f46e5;font-weight:600;text-decoration:none;margin:0 6px}
+  .topnav .current{color:#64748b;font-weight:700;margin:0 6px}
+  .card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .dropzone{border:2px dashed #d1d5db;border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:.2s}
+  .dropzone:hover{border-color:#6366f1;background:#f5f3ff}
+  .dropzone.loaded{border-color:#10b981;background:#ecfdf5}
+  .btn{padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+  .btn-primary{background:#6366f1;color:#fff}.btn-primary:hover{background:#4f46e5}
+  .btn-success{background:#10b981;color:#fff}.btn-success:hover{background:#059669}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{background:#f8fafc;padding:8px;text-align:right;border-bottom:2px solid #e2e8f0;position:sticky;top:0;font-weight:600;white-space:nowrap}
+  td{padding:8px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+  tr:hover{background:#f8fafc}
+  .table-wrap{max-height:600px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px}
+  .product-img {width: 50px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb;}
+  .no-img {width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; background: #f3f4f6; color: #9ca3af; font-size: 9px; text-align: center; border-radius: 6px; border: 1px solid #e5e7eb;}
+</style>
+</head>
+<body class="min-h-screen p-6">
+
+<div style="max-width:1200px;margin:0 auto;">
+
+  <div class="topnav">
+    <a href="index.html">🏠 الرئيسية</a> | 
+    <a href="inventory-update.html">📦 تحديث المخزون</a> | 
+    <a href="sales-check.html">🛒 فحص المبيعات</a> | 
+    <a href="supplier-sync.html">🏬 مزامنة مورد</a> | 
+    <span class="current">🖼️ مطابقة الصور</span>
+  </div>
+
+  <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;margin-bottom:20px;">🖼️ مطابقة صور المنتجات مع المبيعات</h1>
+
+  <div class="card">
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">📂 رفع الملفات</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="dropzone" id="dz-products" onclick="document.getElementById('f-products').click()">
+        <input type="file" id="f-products" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'products')">
+        <div style="font-size:24px;">📦</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">ملف منتجات ترينديول (كامل)</div>
+        <div id="st-products" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
+      </div>
+      <div class="dropzone" id="dz-sales" onclick="document.getElementById('f-sales').click()">
+        <input type="file" id="f-sales" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'sales')">
+        <div style="font-size:24px;">🧾</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">ملف المبيعات (مكتمل فقط)</div>
+        <div id="st-sales" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:14px;">
+      <button class="btn btn-primary" id="btn-process" disabled onclick="processFiles()" style="padding:10px 30px;font-size:14px;">🔄 مطابقة وعرض</button>
+    </div>
+  </div>
+
+  <div class="card hidden" id="results-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
+      <h3 style="font-size:15px;font-weight:700;">📊 نتيجة المطابقة (<span id="total-matched">0</span> صنف)</h3>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="search-input" placeholder="🔍 بحث بالباركود، الاسم، أو رقم الطلب..." 
+               style="border:1px solid #d1d5db;border-radius:6px;padding:6px 12px;font-size:12px;width:250px" oninput="filterTable()">
+        <button class="btn btn-success btn-sm" onclick="exportResults()">📥 تصدير Excel</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>الصورة</th>
+            <th>Barcode</th>
+            <th>اسم المنتج</th>
+            <th>Order Number</th>
+            <th>الكمية</th>
+            <th>إجمالي المبلغ</th>
+            <th>حالة الصورة</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let files = { products: null, sales: null };
+let matchedData = [];
+let filteredData = [];
+
+function pickFile(input, type) {
+  files[type] = input.files[0];
+  if (files[type]) {
+    document.getElementById('dz-' + type).classList.add('loaded');
+    document.getElementById('st-' + type).textContent = '✅ ' + files[type].name;
+    document.getElementById('btn-process').disabled = !(files.products && files.sales);
+  }
+}
+
+async function readExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', raw: false });
+        resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' }));
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error('فشل قراءة الملف'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function findCol(headers, names) {
+  for (let n of names) {
+    let idx = headers.findIndex(h => String(h).toLowerCase().trim() === n.toLowerCase().trim());
+    if (idx !== -1) return idx;
+  }
+  for (let n of names) {
+    let idx = headers.findIndex(h => String(h).toLowerCase().includes(n.toLowerCase()));
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+
+async function processFiles() {
+  document.getElementById('btn-process').textContent = '⏳ جاري المعالجة...';
+  document.getElementById('btn-process').disabled = true;
+
+  try {
+    // 1. قراءة ملف المنتجات وبناء قاموس
+    const prodRows = await readExcel(files.products);
+    const pHeaders = prodRows[0];
+    const pColBar = findCol(pHeaders, ['Barcode', 'باركود']);
+    const pColImg = findCol(pHeaders, ['Image 1', 'Image_1', 'الصورة 1', 'Image1']);
+    const pColName = findCol(pHeaders, ['Product Name', 'اسم المنتج', 'Product_Name']);
+
+    const productsMap = new Map();
+    for (let i = 1; i < prodRows.length; i++) {
+      const bc = String(prodRows[i][pColBar] || '').trim();
+      if (!bc) continue;
+      productsMap.set(bc, {
+        image: pColImg !== -1 ? String(prodRows[i][pColImg] || '').trim() : '',
+        name: pColName !== -1 ? String(prodRows[i][pColName] || '').trim() : 'غير معروف'
+      });
+    }
+
+    // 2. قراءة ملف المبيعات ومطابقتها
+    const salesRows = await readExcel(files.sales);
+    const sHeaders = salesRows[0];
+    const sColBar = findCol(sHeaders, ['Barcode', 'باركود']);
+    const sColOrder = findCol(sHeaders, ['Order Number', 'رقم الطلب', 'OrderNumber']);
+    const sColQty = findCol(sHeaders, ['Quantity', 'الكمية', 'Qty']);
+    const sColAmt = findCol(sHeaders, ['Total Amount', 'إجمالي المبلغ', 'Invoice Amount']);
+
+    matchedData = [];
+    for (let i = 1; i < salesRows.length; i++) {
+      const bc = String(salesRows[i][sColBar] || '').trim();
+      if (!bc) continue;
+
+      const prodInfo = productsMap.get(bc) || { image: '', name: 'غير موجود في ملف المنتجات' };
+      const hasImage = prodInfo.image && prodInfo.image.toLowerCase().startsWith('http');
+
+      matchedData.push({
+        barcode: bc,
+        productName: prodInfo.name,
+        imageUrl: hasImage ? prodInfo.image : '',
+        orderNumber: sColOrder !== -1 ? String(salesRows[i][sColOrder] || '') : '',
+        quantity: sColQty !== -1 ? String(salesRows[i][sColQty] || '0') : '0',
+        totalAmount: sColAmt !== -1 ? String(salesRows[i][sColAmt] || '0') : '0',
+        imageStatus: hasImage ? 'متوفرة' : 'لا توجد صورة'
+      });
+    }
+
+    filteredData = [...matchedData];
+    document.getElementById('total-matched').textContent = matchedData.length;
+    document.getElementById('results-card').classList.remove('hidden');
+    renderTable();
+
+  } catch (err) {
+    alert('حدث خطأ: ' + err.message);
+  } finally {
+    document.getElementById('btn-process').textContent = '🔄 مطابقة وعرض';
+    document.getElementById('btn-process').disabled = false;
+  }
+}
+
+function renderTable() {
+  const tbody = document.getElementById('table-body');
+  const limit = 200; // عرض أول 200 فقط لتسريع المتصفح
+  
+  if (filteredData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#9ca3af;">لا توجد نتائج مطابقة للبحث</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filteredData.slice(0, limit).map(row => {
+    const imgHtml = row.imageUrl 
+      ? `<img src="${row.imageUrl}" class="product-img" onerror="this.outerHTML='<div class=\\'no-img\\'>لا توجد<br>صورة</div>'" loading="lazy">`
+      : `<div class="no-img">لا توجد<br>صورة</div>`;
+    
+    return `<tr>
+      <td style="text-align:center;">${imgHtml}</td>
+      <td style="direction:ltr;text-align:left;font-family:monospace;">${row.barcode}</td>
+      <td>${row.productName}</td>
+      <td style="direction:ltr;text-align:left;font-family:monospace;">${row.orderNumber}</td>
+      <td style="text-align:center;">${row.quantity}</td>
+      <td style="text-align:center;font-weight:600;">${row.totalAmount}</td>
+      <td style="text-align:center;">
+        <span style="padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600;${row.imageStatus === 'متوفرة' ? 'background:#dcfce7;color:#166534' : 'background:#fee2e2;color:#991b1b'}">
+          ${row.imageStatus}
+        </span>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterTable() {
+  const query = document.getElementById('search-input').value.toLowerCase().trim();
+  if (!query) {
+    filteredData = [...matchedData];
+  } else {
+    filteredData = matchedData.filter(row => 
+      row.barcode.toLowerCase().includes(query) ||
+      row.productName.toLowerCase().includes(query) ||
+      row.orderNumber.toLowerCase().includes(query)
+    );
+  }
+  renderTable();
+}
+
+function exportResults() {
+  if (filteredData.length === 0) return alert('لا توجد بيانات للتصدير');
+  
+  const exportData = filteredData.map(row => ({
+    'Barcode': row.barcode,
+    'اسم المنتج': row.productName,
+    'رابط الصورة': row.imageUrl || 'لا توجد صورة',
+    'Order Number': row.orderNumber,
+    'الكمية': row.quantity,
+    'إجمالي المبلغ': row.totalAmount,
+    'حالة الصورة': row.imageStatus
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(exportData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'نتيجة المطابقة');
+  XLSX.writeFile(wb, `Product_Images_Match_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+</script>
+</body>
+</html>
