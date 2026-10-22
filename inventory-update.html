@@ -249,7 +249,7 @@
 
     <p style="font-size:11px;color:#6b7280;margin-top:6px;">
       💡 الماستر المحدث بيطلع كل المنتجات (بدون فلاتر). ملف ترينديول بيطلع المنتجات الظاهرة بعد الفلاتر اللي فيها تغيير فقط (باستثناء الهولد، إلا أصناف مدير الحساب).<br>
-      📄 أعمدة ملف التصدير: Barcode | Original (List) Price | Sale Price | Stock | Barcode odoo | VAT (0→1 و 15→1.15) | السعر الثابت | عدد القطع<br>
+      📄 أعمدة ملف التصدير: Barcode | Original (List) Price | Trendyol Sale Price (VAT included) | Product Stock Quantity | Barcode odoo | VAT | السعر الثابت | عدد القطع<br>
       🧾 لو رافع شيت المبيعات: الكمية الجديدة = (أودو ÷ عدد القطع) − مبيعات اليوم، ومش بتقل عن صفر.
     </p>
   </div>
@@ -397,7 +397,7 @@ function getBoth(map, key){
 }
 
 // ============================================================
-// PROCESS (تم التعديل الجراحي هنا للحفاظ على كل الماستر)
+// PROCESS
 // ============================================================
 async function processAll(){
   const warnings = [];
@@ -450,11 +450,10 @@ async function processAll(){
       }
     }
 
-    // ---------- ترينديول + الدمج (الحل الصحيح) ----------
+    // ---------- ترينديول + الدمج ----------
     const tRows = await readRows(S.files.trendyol);
     const dT = detect(tRows, SPEC.trendyol);
     
-    // بناء قاموس سريع لبيانات ترينديول
     const trendyolMap = new Map();
     if (dT) {
       for (const r of tRows.slice(dT.headerRow+1)){
@@ -477,7 +476,6 @@ async function processAll(){
     S.merged = [];
     const supSet = new Set();
 
-    // 1. الدوران الأساسي على الماستر (عشان نضمن الـ 900 منتج)
     for (const r of mRows.slice(dM.headerRow+1)){
       const bc = clean(r[dM.map.barcode]); if (!bc) continue;
       const nBc = norm(bc);
@@ -491,7 +489,6 @@ async function processAll(){
       const salePrice = tyData.salePrice || 0;
       const stock = tyData.stock || 0;
 
-      // منطق الفات: لو 15 يبقى 1.15، لو 0 أو غير موجود يبقى 1
       const vatRate = tyData.vatRate !== undefined ? toNum(tyData.vatRate) : 0;
       const vatMult = vatRate === 0 ? 1 : (1 + vatRate/100);
 
@@ -538,7 +535,6 @@ async function processAll(){
       });
     }
 
-    // 2. إضافة أي منتجات جديدة في ترينديول ومش موجودة في الماستر
     for (const [nBc, tyData] of trendyolMap.entries()){
       if (!getBoth(masterMap, nBc)) {
         const odoo = getBoth(odooMap, nBc);
@@ -573,7 +569,6 @@ async function processAll(){
 
     S.suppliers = Array.from(supSet).sort();
 
-    // ---------- عرض ----------
     const amItems = S.merged.filter(i => i.managerStop || i.fixedRaw);
     document.getElementById('read-summary').innerHTML =
       `📖 ملخص القراءة: ترينديول ${trendyolMap.size.toLocaleString()} صنف | أودو ${odooMap.size.toLocaleString()} باركود | ماستر ${masterMap.size.toLocaleString()} | ` +
@@ -902,7 +897,7 @@ function updateDynamicExport(){
 }
 
 // ============================================================
-// EXPORT
+// EXPORT (تم التحديث هنا لمطابقة قالب ترينديول الجديد + الاحتفاظ بالأعمدة الإضافية)
 // ============================================================
 function protectBarcodeCols(ws, headers){
   if (!ws['!ref']) return;
@@ -917,12 +912,13 @@ function protectBarcodeCols(ws, headers){
   }
 }
 
+// صفوف ملف التصدير (الأعمدة الجديدة + الأعمدة الإضافية)
 function trendyolRow(i){
   return {
     'Barcode': i.barcode,
     'Original (List) Price': i.originalPrice,
-    'Sale Price': i.salePrice,
-    'Stock': i.exportableStock,
+    'Trendyol Sale Price (VAT included)': i.salePrice,
+    'Product Stock Quantity': i.exportableStock,
     'Barcode odoo': i.odooBarcode,
     'VAT': i.vatMult,
     'السعر الثابت': i.fixedRaw || '',
@@ -938,12 +934,13 @@ function exportMaster(){
     'Product Name': i.name,
     'Brand': i.brand,
     'Original (List) Price': i.originalPrice,
-    'Trendyol Sale Price': i.salePrice,
+    'Trendyol Sale Price (VAT included)': i.salePrice,
     'Stock (Trendyol)': i.stock,
     'Odoo Qty': i.hasOdoo ? i.odooQty : '',
-    'Exportable Stock': i.exportableStock,
+    'Product Stock Quantity': i.exportableStock,
     'المورد': i.supplier,
     'عدد القطع': i.pieces,
+    'VAT': i.vatMult,
     'Hold Stock': i.holdStock ? 'TRUE' : 'FALSE',
     'مدير الحساب': i.amRaw,
     'السعر الثابت': i.fixedRaw,
@@ -997,19 +994,19 @@ function exportDynamic(){
   } else if (S.quickFilterActive === 'hold'){
     data = visible.map(i=>({
       'Barcode': i.barcode, 'Barcode odoo': i.odooBarcode, 'Product Name': i.name, 'المورد': i.supplier,
-      'Stock (Trendyol)': i.stock, 'Odoo Qty': i.hasOdoo ? i.odooQty : '', 'Exportable Stock': i.exportableStock, 'عدد القطع': i.pieces
+      'Stock (Trendyol)': i.stock, 'Odoo Qty': i.hasOdoo ? i.odooQty : '', 'Product Stock Quantity': i.exportableStock, 'عدد القطع': i.pieces, 'VAT': i.vatMult
     }));
     name = `Hold_Products_${dateStr()}.xlsx`;
   } else if (S.quickFilterActive === 'am'){
     data = visible.filter(i=>i.managerStop || i.fixedRaw).map(i=>({
       'Barcode': i.barcode, 'Product Name': i.name, 'مدير الحساب': i.amRaw, 'السعر الثابت': i.fixedRaw,
-      'Stock (Trendyol)': i.stock, 'Exportable Stock': i.exportableStock, 'عدد القطع': i.pieces
+      'Stock (Trendyol)': i.stock, 'Product Stock Quantity': i.exportableStock, 'عدد القطع': i.pieces, 'VAT': i.vatMult
     }));
     name = `Account_Manager_Items_${dateStr()}.xlsx`;
   } else {
     data = visible.map(i=>({
       'Barcode': i.barcode, 'Barcode odoo': i.odooBarcode, 'Product Name': i.name, 'المورد': i.supplier,
-      'Stock (Trendyol)': i.stock, 'Odoo Qty': i.hasOdoo ? i.odooQty : '', 'Exportable Stock': i.exportableStock, 'عدد القطع': i.pieces
+      'Stock (Trendyol)': i.stock, 'Odoo Qty': i.hasOdoo ? i.odooQty : '', 'Product Stock Quantity': i.exportableStock, 'عدد القطع': i.pieces, 'VAT': i.vatMult
     }));
     name = `Filtered_Export_${dateStr()}.xlsx`;
   }
