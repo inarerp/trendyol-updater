@@ -69,12 +69,12 @@
     <span class="current">📦 تحديث المخزون</span> | <a href="sales-check.html">🛒 فحص المبيعات</a> | <a href="supplier-sync.html">🏬 مزامنة مورد</a>
   </div>
 
-  <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;">📦 تحديث المخزون</h1>
+  <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;"> تحديث المخزون</h1>
   <p style="text-align:center;font-size:13px;color:#64748b;margin-bottom:16px;">دمج ترينديول + أودو + الماستر → ملف تصدير الكميات</p>
 
   <!-- ================= UPLOADS ================= -->
   <div class="card">
-    <h3 style="font-size:15px;font-weight:700;margin:0 0 12px;">📂 رفع الملفات</h3>
+    <h3 style="font-size:15px;font-weight:700;margin:0 0 12px;"> رفع الملفات</h3>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
       <div class="dropzone" id="dz-master" onclick="document.getElementById('f-master').click()">
         <input type="file" id="f-master" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'master')">
@@ -113,7 +113,7 @@
   <div class="card">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
       <div class="stat-box"><div class="stat-num" style="color:#6366f1" id="s-total">0</div><div class="stat-lbl">إجمالي (بعد الفلتر)</div></div>
-      <div class="stat-box"><div class="stat-num" style="color:#10b981" id="s-new">0</div><div class="stat-lbl">جديدة ⭐</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#10b981" id="s-new">0</div><div class="stat-lbl">جديدة </div></div>
       <div class="stat-box"><div class="stat-num" style="color:#ef4444" id="s-new-no-odoo">0</div><div class="stat-lbl">جديدة بدون أودو</div></div>
       <div class="stat-box"><div class="stat-num" style="color:#f59e0b" id="s-changes">0</div><div class="stat-lbl">تغيرات كمية</div></div>
       <div class="stat-box"><div class="stat-num" style="color:#8b5cf6" id="s-no-odoo">0</div><div class="stat-lbl">مش في أودو</div></div>
@@ -128,7 +128,7 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <h3 style="font-size:14px;font-weight:700;margin:0;">🔍 الفلاتر</h3>
       <div style="display:flex;gap:6px;">
-        <button class="btn btn-outline btn-sm" onclick="saveFilterGroup()">💾 حفظ الفلتر</button>
+        <button class="btn btn-outline btn-sm" onclick="saveFilterGroup()"> حفظ الفلتر</button>
         <button class="btn btn-outline btn-sm" style="border-color:#ef4444;color:#ef4444" onclick="resetAll()">↻ إعادة تعيين كل الفلاتر</button>
       </div>
     </div>
@@ -140,7 +140,7 @@
       <div class="quick-filters">
         <button class="btn btn-outline btn-sm" onclick="quickFilter('zeroing',this)">🔴 محتاجة تصفير</button>
         <button class="btn btn-outline btn-sm" onclick="quickFilter('restock',this)">🟢 في أودو + ترينديول صفر</button>
-        <button class="btn btn-outline btn-sm" onclick="quickFilter('changes',this)">🟡 تغييرات كمية</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFilter('changes',this)"> تغييرات كمية</button>
         <button class="btn btn-outline btn-sm" onclick="quickFilter('new',this)">🆕 منتجات جديدة</button>
         <button class="btn btn-outline btn-sm" onclick="quickFilter('new-no-odoo',this)">🆕❌ جديدة بدون أودو</button>
         <button class="btn btn-outline btn-sm" onclick="quickFilter('hold',this)">🔒 منتجات الهولد</button>
@@ -202,7 +202,7 @@
 
   <!-- ================= HOLD REPORT ================= -->
   <div class="card hidden" id="sec-hold-report">
-    <h3 style="font-size:14px;font-weight:700;margin:0 0 10px;color:#ec4899;">⚠️ تنبيه: منتجات عليها Hold ودخل لها مخزون جديد في ترينديول</h3>
+    <h3 style="font-size:14px;font-weight:700;margin:0 0 10px;color:#ec4899;">️ تنبيه: منتجات عليها Hold ودخل لها مخزون جديد في ترينديول</h3>
     <div class="table-wrap" style="max-height:250px;">
       <table><thead><tr><th>الباركود</th><th>الاسم</th><th>المورد</th><th>الكمية الجديدة على ترينديول</th></tr></thead>
       <tbody id="tbody-hold"></tbody></table>
@@ -808,7 +808,7 @@ function renderTable(){
     if (item.managerStop && item.fixedRaw) badge = '<span class="badge b-am">🛑 صفر + 💰 سعر ثابت</span>';
     else if (item.managerStop) badge = '<span class="badge b-am">🛑 صفر مدير الحساب</span>';
     else if (item.fixedRaw) badge = '<span class="badge b-am">💰 سعر ثابت</span>';
-    else if (item.holdStock && item.isIncomingStock) badge = '<span class="badge b-hold">Hold + مخزون ⚠️</span>';
+    else if (item.holdStock && item.isIncomingStock) badge = '<span class="badge b-hold">Hold + مخزون ️</span>';
     else if (item.holdStock) badge = '<span class="badge b-hold">🔒 Hold</span>';
     else if (item.isNew) badge = '<span class="badge b-unk">جديد ⭐</span>';
     else if (!item.hasOdoo && item.stock > 0) badge = '<span class="badge b-none">تصفير</span>';
@@ -885,7 +885,7 @@ function updateDynamicExport(){
     'restock':'🟢 تصدير منتجات الرجوع',
     'changes':'🟡 تصدير التغييرات الكمية',
     'new':'🆕 تصدير المنتجات الجديدة',
-    'new-no-odoo':'🆕❌ تصدير الجديدة بدون أودو',
+    'new-no-odoo':'❌ تصدير الجديدة بدون أودو',
     'hold':'🔒 تصدير منتجات الهولد',
     'am':'🛑 تصدير أصناف مدير الحساب'
   };
@@ -897,19 +897,59 @@ function updateDynamicExport(){
 }
 
 // ============================================================
-// EXPORT (تم التحديث هنا لمطابقة قالب ترينديول الجديد + الاحتفاظ بالأعمدة الإضافية)
+// EXPORT - الهيكل الجديد (3 صفوف رأس + البيانات)
 // ============================================================
-function protectBarcodeCols(ws, headers){
-  if (!ws['!ref']) return;
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  const cols = [];
-  headers.forEach((h,c)=>{ if (String(h).toLowerCase().includes('barcode')) cols.push(c); });
-  for (let r=1; r<=range.e.r; r++){
-    for (const c of cols){
-      const ref = XLSX.utils.encode_cell({r,c});
-      if (ws[ref]) { ws[ref].t='s'; ws[ref].v = String(ws[ref].v); }
+
+// دالة مساعدة لإنشاء ورقة بالهيكل الجديد
+function createSheetWithHeader(data, columns, sheetName) {
+  const ws = XLSX.utils.aoa_to_sheet([]);
+  
+  // الصف الأول: Product Information | Fields to Update (مدمج B1:D1)
+  ws['A1'] = { t: 's', v: 'Product Information' };
+  ws['B1'] = { t: 's', v: 'Fields to Update' };
+  ws['!merges'] = [{ s: { r: 0, c: 1 }, e: { r: 0, c: Math.min(columns.length - 1, 3) } }];
+  
+  // الصف الثاني: Required | Optional (مدمج B2:D2)
+  ws['A2'] = { t: 's', v: 'Required' };
+  ws['B2'] = { t: 's', v: 'Optional' };
+  ws['!merges'].push({ s: { r: 1, c: 1 }, e: { r: 1, c: Math.min(columns.length - 1, 3) } });
+  
+  // الصف الثالث: عناوين الأعمدة
+  columns.forEach((col, i) => {
+    const cellRef = XLSX.utils.encode_cell({ r: 2, c: i });
+    ws[cellRef] = { t: 's', v: col };
+  });
+  
+  // الصف الرابع+: البيانات
+  data.forEach((row, i) => {
+    columns.forEach((col, j) => {
+      const cellRef = XLSX.utils.encode_cell({ r: i + 3, c: j });
+      const val = row[col];
+      ws[cellRef] = { t: typeof val === 'number' ? 'n' : 's', v: val !== undefined && val !== null ? val : '' };
+    });
+  });
+  
+  // تحديث النطاق
+  const lastRow = data.length + 2;
+  const lastCol = columns.length - 1;
+  ws['!ref'] = `A1:${XLSX.utils.encode_cell({ r: lastRow, c: lastCol })}`;
+  
+  // حماية أعمدة الباركود (تحويل لنص للحفاظ على الأصفار)
+  for (let r = 3; r <= lastRow; r++) {
+    for (let c = 0; c < columns.length; c++) {
+      if (columns[c].toLowerCase().includes('barcode')) {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (ws[ref] && ws[ref].v) { 
+          ws[ref].t = 's'; 
+          ws[ref].v = String(ws[ref].v); 
+        }
+      }
     }
   }
+  
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  return wb;
 }
 
 // صفوف ملف التصدير (الأعمدة الجديدة + الأعمدة الإضافية)
@@ -948,10 +988,8 @@ function exportMaster(){
     'Is New': i.isNew ? 'Yes' : 'No',
     'Has Change': i.isChange ? 'Yes' : 'No'
   }));
-  const ws = XLSX.utils.json_to_sheet(data);
-  protectBarcodeCols(ws, Object.keys(data[0]));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Master');
+  const columns = Object.keys(data[0]);
+  const wb = createSheetWithHeader(data, columns, 'Master');
   XLSX.writeFile(wb, `Master_Updated_${dateStr()}.xlsx`);
 }
 
@@ -967,54 +1005,53 @@ function exportNew(){
     'Status': i.status
   }));
   if (!data.length) return alert('لا توجد منتجات جديدة بعد الفلترة');
-  const ws = XLSX.utils.json_to_sheet(data);
-  protectBarcodeCols(ws, Object.keys(data[0]));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'New Products');
+  const columns = Object.keys(data[0]);
+  const wb = createSheetWithHeader(data, columns, 'New Products');
   XLSX.writeFile(wb, `New_Products_${dateStr()}.xlsx`);
 }
 
 function exportTrendyol(){
   const data = S.filtered.filter(i=>i.isChange && (!i.holdStock || i.managerStop)).map(trendyolRow);
   if (!data.length) return alert('لا توجد تغييرات للتصدير بعد الفلترة');
-  const ws = XLSX.utils.json_to_sheet(data);
-  protectBarcodeCols(ws, Object.keys(data[0]));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Price_And_Stock_Update');
+  const columns = ['Barcode', 'Original (List) Price', 'Trendyol Sale Price (VAT included)', 'Product Stock Quantity', 'Barcode odoo', 'VAT', 'السعر الثابت', 'عدد القطع'];
+  const wb = createSheetWithHeader(data, columns, 'Price_And_Stock_Update');
   XLSX.writeFile(wb, `Trendyol_Export_${dateStr()}.xlsx`);
 }
 
 function exportDynamic(){
   const visible = S.filtered;
   if (!visible.length) return alert('لا توجد نتائج للتصدير');
-  let data, name;
+  let data, columns, name;
+  
   if (['zeroing','restock','changes'].includes(S.quickFilterActive)){
     data = visible.filter(i=>i.isChange && (!i.holdStock || i.managerStop)).map(trendyolRow);
+    columns = ['Barcode', 'Original (List) Price', 'Trendyol Sale Price (VAT included)', 'Product Stock Quantity', 'Barcode odoo', 'VAT', 'السعر الثابت', 'عدد القطع'];
     name = `Trendyol_${S.quickFilterActive}_${dateStr()}.xlsx`;
   } else if (S.quickFilterActive === 'hold'){
     data = visible.map(i=>({
       'Barcode': i.barcode, 'Barcode odoo': i.odooBarcode, 'Product Name': i.name, 'المورد': i.supplier,
       'Stock (Trendyol)': i.stock, 'Odoo Qty': i.hasOdoo ? i.odooQty : '', 'Product Stock Quantity': i.exportableStock, 'عدد القطع': i.pieces, 'VAT': i.vatMult
     }));
+    columns = Object.keys(data[0]);
     name = `Hold_Products_${dateStr()}.xlsx`;
   } else if (S.quickFilterActive === 'am'){
     data = visible.filter(i=>i.managerStop || i.fixedRaw).map(i=>({
       'Barcode': i.barcode, 'Product Name': i.name, 'مدير الحساب': i.amRaw, 'السعر الثابت': i.fixedRaw,
       'Stock (Trendyol)': i.stock, 'Product Stock Quantity': i.exportableStock, 'عدد القطع': i.pieces, 'VAT': i.vatMult
     }));
+    columns = Object.keys(data[0]);
     name = `Account_Manager_Items_${dateStr()}.xlsx`;
   } else {
     data = visible.map(i=>({
       'Barcode': i.barcode, 'Barcode odoo': i.odooBarcode, 'Product Name': i.name, 'المورد': i.supplier,
       'Stock (Trendyol)': i.stock, 'Odoo Qty': i.hasOdoo ? i.odooQty : '', 'Product Stock Quantity': i.exportableStock, 'عدد القطع': i.pieces, 'VAT': i.vatMult
     }));
+    columns = Object.keys(data[0]);
     name = `Filtered_Export_${dateStr()}.xlsx`;
   }
+  
   if (!data.length) return alert('لا توجد بيانات للتصدير');
-  const ws = XLSX.utils.json_to_sheet(data);
-  protectBarcodeCols(ws, Object.keys(data[0]));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Data');
+  const wb = createSheetWithHeader(data, columns, 'Data');
   XLSX.writeFile(wb, name);
 }
 </script>
