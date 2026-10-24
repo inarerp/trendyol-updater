@@ -3,55 +3,103 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>لوحة التحكم - Trendyol Updater</title>
+<title>Trendyol Updater - لوحة التحكم</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; }
-  .tool-card { transition: all 0.3s ease; }
-  .tool-card:hover { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
-  .icon-box { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-size: 28px; margin-bottom: 16px; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+  }
+  .tool-card {
+    transition: all 0.3s ease;
+  }
+  .tool-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+  }
+  .icon-box {
+    width: 70px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    font-size: 32px;
+    margin-bottom: 16px;
+  }
 </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-6">
 
   <!-- Header -->
   <div class="text-center mb-12">
-    <h1 class="text-4xl font-bold text-gray-800 mb-2">🚀 Trendyol Updater</h1>
-    <p class="text-gray-500 text-lg">لوحة التحكم الرئيسية لإدارة أدوات ترينديول</p>
+    <h1 class="text-5xl font-bold text-white mb-3 drop-shadow-lg"> Trendyol Updater</h1>
+    <p class="text-white/90 text-lg">لوحة التحكم الرئيسية لإدارة أدوات ترينديول</p>
+    <p class="text-white/70 text-sm mt-2">جميع الأدوات تعمل محلياً على المتصفح - بياناتك آمنة 100%</p>
   </div>
 
   <!-- Tools Grid -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl w-full">
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 max-w-5xl w-full">
     
     <!-- أداة تحديث المخزون -->
-    <a href="inventory-update.html" class="tool-card bg-white rounded-2xl p-8 shadow-sm border border-gray-100 flex flex-col items-center text-center cursor-pointer">
+    <a href="inventory-update.html" class="tool-card bg-white rounded-2xl p-8 shadow-lg border border-white/20 flex flex-col items-center text-center cursor-pointer">
       <div class="icon-box bg-indigo-100 text-indigo-600">📦</div>
-      <h2 class="text-xl font-bold text-gray-800 mb-2">تحديث المخزون</h2>
-      <p class="text-gray-500 text-sm leading-relaxed">دمج ترينديول + أودو + الماستر، وتحديث الكميات والأسعار والفات.</p>
-      <span class="mt-4 text-indigo-600 font-semibold text-sm">فتح الأداة &larr;</span>
+      <h2 class="text-2xl font-bold text-gray-800 mb-3">تحديث المخزون</h2>
+      <p class="text-gray-600 text-sm leading-relaxed mb-4">دمج ترينديول + أودو + الماستر → تحديث الكميات والأسعار والفات (VAT) وتصدير ملف جاهز للرفع على ترينديول.</p>
+      <div class="flex flex-wrap justify-center gap-2 mb-4">
+        <span class="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full">VAT</span>
+        <span class="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full">Pivot</span>
+        <span class="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full">فلاتر</span>
+      </div>
+      <span class="text-indigo-600 font-semibold text-sm">فتح الأداة ←</span>
     </a>
 
     <!-- أداة فحص المبيعات -->
-    <a href="sales-check.html" class="tool-card bg-white rounded-2xl p-8 shadow-sm border border-gray-100 flex flex-col items-center text-center cursor-pointer">
+    <a href="sales-check.html" class="tool-card bg-white rounded-2xl p-8 shadow-lg border border-white/20 flex flex-col items-center text-center cursor-pointer">
       <div class="icon-box bg-emerald-100 text-emerald-600">🛒</div>
-      <h2 class="text-xl font-bold text-gray-800 mb-2">فحص المبيعات</h2>
-      <p class="text-gray-500 text-sm leading-relaxed">مقارنة فواتير جدوى مع مبيعات ترينديول واكتشاف الفروقات والطلبات الملغاة.</p>
-      <span class="mt-4 text-emerald-600 font-semibold text-sm">فتح الأداة &larr;</span>
+      <h2 class="text-2xl font-bold text-gray-800 mb-3">فحص المبيعات والموردين</h2>
+      <p class="text-gray-600 text-sm leading-relaxed mb-4">مقارنة مبيعات اليوم مع مخزون أودو، واكتشاف النواقص، والبحث عن موردين بديلين لنفس المنتج.</p>
+      <div class="flex flex-wrap justify-center gap-2 mb-4">
+        <span class="text-xs bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full">مبيعات</span>
+        <span class="text-xs bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full">موردين</span>
+        <span class="text-xs bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full">نواقص</span>
+      </div>
+      <span class="text-emerald-600 font-semibold text-sm">فتح الأداة ←</span>
     </a>
 
     <!-- أداة مزامنة المورد -->
-    <a href="supplier-sync.html" class="tool-card bg-white rounded-2xl p-8 shadow-sm border border-gray-100 flex flex-col items-center text-center cursor-pointer">
+    <a href="supplier-sync.html" class="tool-card bg-white rounded-2xl p-8 shadow-lg border border-white/20 flex flex-col items-center text-center cursor-pointer">
       <div class="icon-box bg-amber-100 text-amber-600">🏬</div>
-      <h2 class="text-xl font-bold text-gray-800 mb-2">مزامنة المورد</h2>
-      <p class="text-gray-500 text-sm leading-relaxed">تحديث بيانات الموردين في الماستر واستخراج المنتجات الجديدة.</p>
-      <span class="mt-4 text-amber-600 font-semibold text-sm">فتح الأداة &larr;</span>
+      <h2 class="text-2xl font-bold text-gray-800 mb-3">مزامنة المورد</h2>
+      <p class="text-gray-600 text-sm leading-relaxed mb-4">تحديث بيانات الموردين في الماستر للمنتجات المشتركة فقط، واستخراج المنتجات الجديدة في شيت منفصل.</p>
+      <div class="flex flex-wrap justify-center gap-2 mb-4">
+        <span class="text-xs bg-amber-50 text-amber-700 px-3 py-1 rounded-full">ماستر</span>
+        <span class="text-xs bg-amber-50 text-amber-700 px-3 py-1 rounded-full">موردين</span>
+        <span class="text-xs bg-amber-50 text-amber-700 px-3 py-1 rounded-full">تطابق</span>
+      </div>
+      <span class="text-amber-600 font-semibold text-sm">فتح الأداة ←</span>
+    </a>
+
+    <!-- أداة دمج وحساب التسعير -->
+    <a href="pricing-tool.html" class="tool-card bg-white rounded-2xl p-8 shadow-lg border border-white/20 flex flex-col items-center text-center cursor-pointer">
+      <div class="icon-box bg-purple-100 text-purple-600"></div>
+      <h2 class="text-2xl font-bold text-gray-800 mb-3">دمج وحساب التسعير</h2>
+      <p class="text-gray-600 text-sm leading-relaxed mb-4">دمج مخرجات المخزون مع ملف أودو لحساب سعر الجملة (Last Purchase Price أو التكلفة) وتطبيق معادلة التسعير الاحترافية.</p>
+      <div class="flex flex-wrap justify-center gap-2 mb-4">
+        <span class="text-xs bg-purple-50 text-purple-700 px-3 py-1 rounded-full">تسعير</span>
+        <span class="text-xs bg-purple-50 text-purple-700 px-3 py-1 rounded-full">LPP</span>
+        <span class="text-xs bg-purple-50 text-purple-700 px-3 py-1 rounded-full">معادلة</span>
+      </div>
+      <span class="text-purple-600 font-semibold text-sm">فتح الأداة ←</span>
     </a>
 
   </div>
 
   <!-- Footer -->
-  <div class="mt-16 text-center text-gray-400 text-sm">
-    <p>جميع الأدوات تعمل محلياً على المتصفح - بياناتك آمنة 100%</p>
+  <div class="mt-16 text-center text-white/70 text-sm">
+    <p>💡 جميع الأدوات تعمل بدون إنترنت بعد التحميل الأول</p>
+    <p class="mt-1">📊 البيانات لا تُرفع لأي سيرفر - معالجة محلية 100%</p>
   </div>
 
 </body>
