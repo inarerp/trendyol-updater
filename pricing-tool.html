@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>أداة دمج وحساب التسعير - Trendyol Updater</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<style>
+  body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f0f2f5}
+  .topnav{text-align:center;margin-bottom:12px;font-size:13px}
+  .topnav a{color:#4f46e5;font-weight:600;text-decoration:none;margin:0 6px}
+  .topnav .current{color:#64748b;font-weight:700;margin:0 6px}
+  .card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .dropzone{border:2px dashed #d1d5db;border-radius:10px;padding:16px;text-align:center;cursor:pointer;transition:.2s}
+  .dropzone:hover{border-color:#6366f1;background:#f5f3ff}
+  .dropzone.loaded{border-color:#10b981;background:#ecfdf5}
+  .btn{padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+  .btn-primary{background:#6366f1;color:#fff}.btn-primary:hover{background:#4f46e5}
+  .btn-success{background:#10b981;color:#fff}.btn-success:hover{background:#059669}
+  .info-box{margin-top:10px;padding:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px;color:#1e40af}
+  .warn-box{margin-top:10px;padding:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:12px;color:#9a3412}
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
+  .form-group{display:flex;flex-direction:column;gap:4px}
+  .form-group label{font-size:12px;font-weight:600;color:#374151}
+  .form-group input,.form-group select{padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px}
+  .formula-box{background:#fef3c7;border:1px solid #fde68a;padding:12px;border-radius:8px;margin-top:12px;font-size:12px;color:#92400e}
+  .formula-box code{background:#fff;padding:2px 6px;border-radius:4px;font-family:monospace}
+</style>
+</head>
+<body class="min-h-screen p-6">
+
+<div style="max-width:1100px;margin:0 auto;">
+
+  <div class="topnav">
+    <a href="index.html">🏠 الرئيسية</a> | 
+    <a href="inventory-update.html">📦 تحديث المخزون</a> | 
+    <span class="current">🧮 دمج وحساب التسعير</span>
+  </div>
+
+  <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;margin-bottom:20px;">🧮 أداة دمج المخزون وحساب التسعير النهائي</h1>
+
+  <div class="card">
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">📂 رفع الملفات</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="dropzone" id="dz-inventory" onclick="document.getElementById('f-inventory').click()">
+        <input type="file" id="f-inventory" accept=".xlsx,.xls" style="display:none" onchange="pickFile(this,'inventory')">
+        <div style="font-size:24px;">📊</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">مخرجات تحديث المخزون</div>
+        <div id="st-inventory" style="font-size:11px;color:#6b7280;">اضغط للرفع</div>
+      </div>
+      <div class="dropzone" id="dz-odoo" onclick="document.getElementById('f-odoo').click()">
+        <input type="file" id="f-odoo" accept=".xlsx,.xls" style="display:none" onchange="pickFile(this,'odoo')">
+        <div style="font-size:24px;"></div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">ملف مخزون أودو</div>
+        <div id="st-odoo" style="font-size:11px;color:#6b7280;">اضغط للرفع</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">⚙️ معادلات التسعير</h3>
+    <div class="info-box">
+      💡 <strong>منطق حساب سعر الجملة:</strong> إذا كانت قيمة <em>Last Purchase Price</em> في ملف أودو أكبر من صفر، سيتم اعتمادها. إذا كانت صفراً أو سالبة أو فارغة، سيتم اعتماد قيمة <em>التكلفة</em>.
+      <br>
+      🔑 <strong>التطابق:</strong> يتم التطابق بين الملفين عبر عمود <strong>Barcode odoo</strong> في ملف المخزون وعمود <strong>باركود</strong> في ملف أودو، مع تطبيع الأصفار البادئة.
+    </div>
+    
+    <div class="formula-box">
+      📐 <strong>المعادلة المستخدمة:</strong><br>
+      <code>سعر البيع = (سعر الجملة × عدد القطع × الفات + الشحن × 1.15) ÷ (1 - العمولة × 1.15 - الربح المستهدف)</code>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>العمولة % (افتراضي: 18)</label>
+        <input type="number" id="commission" value="18" step="0.01" min="0" max="100">
+      </div>
+      <div class="form-group">
+        <label>الشحن (افتراضي: 0)</label>
+        <input type="number" id="shipping" value="0" step="0.01" min="0">
+      </div>
+      <div class="form-group">
+        <label>الربح المستهدف % (افتراضي: 17)</label>
+        <input type="number" id="profit" value="17" step="0.01" min="0" max="100">
+      </div>
+      <div class="form-group">
+        <label>طريقة حساب الشحن</label>
+        <select id="shipMode">
+          <option value="order">لكل طلب/باقة</option>
+          <option value="piece">لكل قطعة</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin:20px 0;">
+    <button class="btn btn-primary" id="btn-process" disabled onclick="processMerge()" style="padding:12px 40px;font-size:15px;">🔄 دمج وحساب التسعير</button>
+  </div>
+  <div id="status-msg" class="warn-box hidden" style="margin-top:10px;"></div>
+
+  <div class="card hidden" id="results-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
+      <h3 style="font-size:15px;font-weight:700;"> نتيجة الدمج والتسعير</h3>
+      <button class="btn btn-success" id="btn-download" onclick="downloadResult()">💾 تحميل الملف الشامل</button>
+    </div>
+    
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+      <div style="background:#f8fafc;padding:15px;border-radius:8px;text-align:center;">
+        <div style="font-size:24px;font-weight:700;color:#6366f1" id="stat-total">0</div>
+        <div style="font-size:12px;color:#6b7280">إجمالي المنتجات</div>
+      </div>
+      <div style="background:#dcfce7;padding:15px;border-radius:8px;text-align:center;">
+        <div style="font-size:24px;font-weight:700;color:#166534" id="stat-matched">0</div>
+        <div style="font-size:12px;color:#166534">تم التطابق في أودو</div>
+      </div>
+      <div style="background:#fef3c7;padding:15px;border-radius:8px;text-align:center;">
+        <div style="font-size:24px;font-weight:700;color:#92400e" id="stat-fallback">0</div>
+        <div style="font-size:12px;color:#92400e">استُخدمت "التكلفة"</div>
+      </div>
+      <div style="background:#fee2e2;padding:15px;border-radius:8px;text-align:center;">
+        <div style="font-size:24px;font-weight:700;color:#991b1b" id="stat-error">0</div>
+        <div style="font-size:12px;color:#991b1b">فشل/غير موجود</div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="background:#6366f1;color:white;">
+            <th style="padding:8px;text-align:right;">Barcode</th>
+            <th style="padding:8px;text-align:right;">Original Price</th>
+            <th style="padding:8px;text-align:right;">Sale Price</th>
+            <th style="padding:8px;text-align:right;">Stock Qty</th>
+            <th style="padding:8px;text-align:right;">VAT</th>
+            <th style="padding:8px;text-align:right;">Pack Qty</th>
+            <th style="padding:8px;text-align:right;">سعر الجملة</th>
+            <th style="padding:8px;text-align:right;">سعر البيع (باقة)</th>
+            <th style="padding:8px;text-align:right;">الربح %</th>
+            <th style="padding:8px;text-align:right;">الحالة</th>
+          </tr>
+        </thead>
+        <tbody id="preview-body"></tbody>
+      </table>
+      <p id="preview-note" style="font-size:11px;color:#6b7280;margin-top:8px;"></p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let files = { inventory: null, odoo: null };
+let mergedData = [];
+let finalColumns = [];
+
+function pickFile(input, type) {
+  files[type] = input.files[0];
+  if(files[type]) {
+    document.getElementById('st-'+type).textContent = '✅ ' + files[type].name;
+    document.getElementById('dz-'+type).classList.add('loaded');
+    document.getElementById('btn-process').disabled = !(files.inventory && files.odoo);
+  }
+}
+
+async function readExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', raw:false});
+        resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''}));
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error('فشل قراءة الملف'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function findHeaderRowIndex(rawData, keywords) {
+  for (let i = 0; i < Math.min(rawData.length, 10); i++) {
+    const row = rawData[i];
+    if (row.some(cell => keywords.some(k => String(cell).toLowerCase().includes(k.toLowerCase())))) {
+      return i;
+    }
+  }
+  return 0;
+}
+
+function findCol(headers, names) {
+  for(let n of names) {
+    let idx = headers.findIndex(h => String(h).toLowerCase().trim() === n.toLowerCase().trim());
+    if (idx !== -1) return idx;
+  }
+  for(let n of names) {
+    let idx = headers.findIndex(h => String(h).toLowerCase().includes(n.toLowerCase()));
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+
+// تطبيع الباركود: إزالة الأصفار البادئة للمقارنة فقط
+function normalizeBarcode(bc) {
+  if (!bc) return '';
+  const s = String(bc).trim();
+  const stripped = s.replace(/^0+/, '');
+  return stripped === '' ? '0' : stripped;
+}
+
+function showStatus(msg, type='warn') {
+  const el = document.getElementById('status-msg');
+  el.textContent = (type === 'warn' ? '⚠️ ' : '✅ ') + msg;
+  el.className = type === 'warn' ? 'warn-box' : 'info-box';
+  el.classList.remove('hidden');
+}
+
+function calculateSellingPrice(cost, vat, shipping, commission, targetProfit) {
+  const costAfterVAT = cost * vat;
+  const denominator = 1 - commission * 1.15 - targetProfit;
+  if (denominator <= 0) return null;
+  return (costAfterVAT + shipping * 1.15) / denominator;
+}
+
+function forwardVerify(sellingPrice, cost, vat, shipping, commission) {
+  const costAfterVAT = cost * vat;
+  const totalFees = (sellingPrice * commission + shipping) * 1.15;
+  const netProfit = sellingPrice - totalFees - costAfterVAT;
+  const margin = sellingPrice > 0 ? netProfit / sellingPrice : 0;
+  return { totalFees, netProfit, margin, costAfterVAT };
+}
+
+async function processMerge() {
+  document.getElementById('btn-process').textContent = '⏳ جاري المعالجة...';
+  document.getElementById('btn-process').disabled = true;
+  document.getElementById('status-msg').classList.add('hidden');
+
+  try {
+    const commission = parseFloat(document.getElementById('commission').value) / 100;
+    const shipping = parseFloat(document.getElementById('shipping').value);
+    const profit = parseFloat(document.getElementById('profit').value) / 100;
+    const shipMode = document.getElementById('shipMode').value;
+
+    if (isNaN(commission) || isNaN(profit) || commission + profit >= 1) {
+      throw new Error('نسب العمولة والربح غير صالحة.');
+    }
+
+    // ========== 1. قراءة ملف أودو وبناء قاموس ==========
+    const odooRaw = await readExcel(files.odoo);
+    const oHeaders = odooRaw[0];
+    
+    // ✅ باركود أودو (المفتاح الرئيسي للمقارنة)
+    const oColBar = findCol(oHeaders, ['باركود', 'barcode', 'default_code']);
+    const oColCost = findCol(oHeaders, ['التكلفة', 'cost', 'standard_price']);
+    const oColLPP = findCol(oHeaders, ['last purchase price', 'سعر اخر شراء', 'last_purchase_price']);
+
+    if (oColBar === -1) throw new Error('لم يتم العثور على عمود "باركود" في ملف أودو.');
+
+    const odooMap = new Map();
+    let odooProcessed = 0;
+    for(let i=1; i<odooRaw.length; i++) {
+      const bc = String(odooRaw[i][oColBar] || '').trim();
+      if(!bc) continue;
+      
+      const lpp = parseFloat(odooRaw[i][oColLPP]) || 0;
+      const cost = parseFloat(odooRaw[i][oColCost]) || 0;
+      const wholesalePrice = (lpp > 0) ? lpp : cost;
+      
+      // المفتاح: الباركود المُطبَّع (بدون أصفار بادئة)
+      const normalizedKey = normalizeBarcode(bc);
+      odooMap.set(normalizedKey, { 
+        wholesalePrice, 
+        lpp, 
+        cost,
+        rawBarcode: bc
+      });
+      odooProcessed++;
+    }
+
+    // ========== 2. قراءة ملف المخزون ==========
+    const invRaw = await readExcel(files.inventory);
+    const headerRowIndex = findHeaderRowIndex(invRaw, ['barcode', 'باركود', 'original', 'trendyol']);
+    const iHeaders = invRaw[headerRowIndex];
+    
+    // ✅ الأعمدة المطلوبة
+    const iColBar = findCol(iHeaders, ['barcode', 'باركود']);  // باركود ترينديول
+    const iColOdooBar = findCol(iHeaders, ['barcode odoo', 'باركود أودو']);  // ✅ باركود أودو (للمقارنة)
+    const iColVat = findCol(iHeaders, ['vat', 'الفات']);
+    const iColPieces = findCol(iHeaders, ['عدد القطع', 'pack qty', 'pack quantity']);
+    const iColOriginalPrice = findCol(iHeaders, ['original (list) price']);
+    const iColSalePrice = findCol(iHeaders, ['trendyol sale price', 'sale price']);
+    const iColStock = findCol(iHeaders, ['product stock quantity', 'stock quantity']);
+    const iColFixedPrice = findCol(iHeaders, ['السعر الثابت', 'fixed price']);
+    
+    if (iColBar === -1) throw new Error('لم يتم العثور على عمود "Barcode" في ملف تحديث المخزون.');
+    if (iColOdooBar === -1) throw new Error('لم يتم العثور على عمود "Barcode odoo" في ملف تحديث المخزون.');
+
+    // ========== 3. الدمج والتسعير ==========
+    mergedData = [];
+    finalColumns = [
+      'Barcode',
+      'Original (List) Price',
+      'Trendyol Sale Price (VAT included)',
+      'Product Stock Quantity',
+      'Barcode odoo',
+      'VAT',
+      'السعر الثابت',
+      'عدد القطع',
+      'سعر الجملة',
+      'سعر البيع (باقة)',
+      'الربح %',
+      'الحالة'
+    ];
+    
+    let matchedCount = 0;
+    let fallbackCount = 0;
+    let errorCount = 0;
+    let notFoundCount = 0;
+    const previewRows = [];
+
+    for(let i = headerRowIndex + 1; i < invRaw.length; i++) {
+      const rowObj = {};
+      iHeaders.forEach((h, idx) => {
+        rowObj[h] = invRaw[i][idx];
+      });
+
+      const rawBc = String(invRaw[i][iColBar] || '').trim();
+      const rawOdooBc = String(invRaw[i][iColOdooBar] || '').trim();
+      
+      if (!rawBc && iHeaders.every((h, idx) => !invRaw[i][idx])) continue;
+
+      // ✅ البحث في أودو باستخدام Barcode odoo (المُطبَّع)
+      const normalizedOdooBc = normalizeBarcode(rawOdooBc);
+      const odooData = odooMap.get(normalizedOdooBc);
+      
+      let wholesalePrice = 0;
+      let status = 'لم يُعثر عليه في أودو';
+
+      if (odooData) {
+        matchedCount++;
+        wholesalePrice = odooData.wholesalePrice;
+        status = 'تم التسعير';
+        
+        if (odooData.lpp <= 0 && odooData.cost > 0) {
+          fallbackCount++;
+        }
+      } else {
+        notFoundCount++;
+      }
+
+      // ✅ قراءة القيم الأصلية (بدون تعديل)
+      const vat = iColVat !== -1 ? (parseFloat(rowObj[iHeaders[iColVat]]) || 1) : 1;
+      const packQty = iColPieces !== -1 ? (parseInt(rowObj[iHeaders[iColPieces]]) || 1) : 1;
+      const originalPrice = iColOriginalPrice !== -1 ? rowObj[iHeaders[iColOriginalPrice]] : '';
+      const originalSalePrice = iColSalePrice !== -1 ? rowObj[iHeaders[iColSalePrice]] : '';
+      const stockQty = iColStock !== -1 ? rowObj[iHeaders[iColStock]] : '';
+      const odooBarcode = rawOdooBc;
+      const fixedPrice = iColFixedPrice !== -1 ? rowObj[iHeaders[iColFixedPrice]] : '';
+
+      // حساب التسعير
+      const packCost = wholesalePrice * packQty;
+      const packShipping = shipMode === 'piece' ? shipping * packQty : shipping;
+      const sellingPrice = calculateSellingPrice(packCost, vat, packShipping, commission, profit);
+      let profitMargin = 0;
+      let finalStatus = status;
+
+      if (wholesalePrice <= 0) {
+        finalStatus = 'سعر الجملة غير متاح';
+        errorCount++;
+      } else if (sellingPrice === null || sellingPrice <= 0) {
+        finalStatus = 'فشل التسعير (نسب مرتفعة)';
+        errorCount++;
+      } else {
+        const verify = forwardVerify(sellingPrice, packCost, vat, packShipping, commission);
+        profitMargin = verify.margin;
+      }
+
+      // ✅ بناء الصف النهائي - الأسماء مطابقة تماماً لـ finalColumns
+      const finalRow = {
+        'Barcode': rawBc,
+        'Original (List) Price': originalPrice,
+        'Trendyol Sale Price (VAT included)': originalSalePrice,
+        'Product Stock Quantity': stockQty,
+        'Barcode odoo': odooBarcode,
+        'VAT': vat,
+        'السعر الثابت': fixedPrice,
+        'عدد القطع': packQty,
+        'سعر الجملة': wholesalePrice > 0 ? Number(wholesalePrice.toFixed(2)) : '',
+        'سعر البيع (باقة)': sellingPrice !== null && sellingPrice > 0 ? Number(sellingPrice.toFixed(2)) : '',
+        'الربح %': profitMargin > 0 ? Number((profitMargin * 100).toFixed(2)) : '',
+        'الحالة': finalStatus
+      };
+
+      mergedData.push(finalRow);
+      
+      if (previewRows.length < 20) {
+        previewRows.push(finalRow);
+      }
+    }
+
+    // ========== 4. عرض النتائج ==========
+    document.getElementById('stat-total').textContent = mergedData.length;
+    document.getElementById('stat-matched').textContent = matchedCount;
+    document.getElementById('stat-fallback').textContent = fallbackCount;
+    document.getElementById('stat-error').textContent = errorCount + notFoundCount;
+    
+    const tbody = document.getElementById('preview-body');
+    tbody.innerHTML = previewRows.map(r => {
+      const statusColor = r['الحالة'] === 'تم التسعير' ? '#10b981' : 
+                          r['الحالة'].includes('فشل') ? '#ef4444' : 
+                          r['الحالة'].includes('غير متاح') ? '#f59e0b' : '#6b7280';
+      return `<tr style="border-bottom:1px solid #e5e7eb;">
+        <td style="padding:6px;font-family:monospace;font-size:11px;">${r['Barcode'] || '-'}</td>
+        <td style="padding:6px;text-align:left;">${r['Original (List) Price'] || '-'}</td>
+        <td style="padding:6px;text-align:left;">${r['Trendyol Sale Price (VAT included)'] || '-'}</td>
+        <td style="padding:6px;text-align:center;">${r['Product Stock Quantity']}</td>
+        <td style="padding:6px;text-align:center;">${r['VAT']}</td>
+        <td style="padding:6px;text-align:center;">${r['عدد القطع']}</td>
+        <td style="padding:6px;text-align:left;">${r['سعر الجملة'] || '-'}</td>
+        <td style="padding:6px;text-align:left;font-weight:700;color:#6366f1;">${r['سعر البيع (باقة)'] || '-'}</td>
+        <td style="padding:6px;text-align:center;">${r['الربح %'] ? r['الربح %'] + '%' : '-'}</td>
+        <td style="padding:6px;"><span style="background:${statusColor};color:white;padding:2px 8px;border-radius:10px;font-size:10px;">${r['الحالة']}</span></td>
+      </tr>`;
+    }).join('');
+    
+    document.getElementById('preview-note').textContent = 
+      `عرض أول ${Math.min(20, mergedData.length)} من ${mergedData.length} | العمولة: ${(commission*100).toFixed(1)}% | الشحن: ${shipping} | الربح: ${(profit*100).toFixed(1)}% | 📊 تم تطبيع ${odooProcessed} باركود من أودو`;
+    
+    document.getElementById('results-card').classList.remove('hidden');
+    showStatus(`✅ تم! ${matchedCount} منتج تم تسعيره (${fallbackCount} اعتمد على التكلفة) | ${notFoundCount} غير موجود في أودو | ${errorCount} فشل تسعيره`);
+
+  } catch(e) {
+    showStatus('خطأ: ' + e.message, 'warn');
+  } finally {
+    document.getElementById('btn-process').textContent = '🔄 دمج وحساب التسعير';
+    document.getElementById('btn-process').disabled = false;
+  }
+}
+
+function createSheetWithHeader(data, columns, sheetName) {
+  const aoa = [];
+  const row1 = ['Product Information', 'Fields to Update'];
+  for(let i = 2; i < columns.length; i++) row1.push('');
+  aoa.push(row1);
+  
+  const row2 = ['Required', 'Optional'];
+  for(let i = 2; i < columns.length; i++) row2.push('');
+  aoa.push(row2);
+  aoa.push(columns);
+  
+  data.forEach(row => {
+    const rowData = columns.map(col => row[col] !== undefined && row[col] !== null ? row[col] : '');
+    aoa.push(rowData);
+  });
+  
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!merges'] = [
+    { s: { r: 0, c: 1 }, e: { r: 0, c: Math.min(columns.length - 1, 3) } },
+    { s: { r: 1, c: 1 }, e: { r: 1, c: Math.min(columns.length - 1, 3) } }
+  ];
+  
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let r = 3; r <= range.e.r; r++) {
+    for (let c = 0; c < columns.length; c++) {
+      if (columns[c].toLowerCase().includes('barcode') || columns[c].includes('باركود')) {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (ws[ref] && ws[ref].v) { 
+          ws[ref].t = 's'; 
+          ws[ref].v = String(ws[ref].v); 
+        }
+      }
+    }
+  }
+  
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  return wb;
+}
+
+function downloadResult() {
+  if (!mergedData.length) return;
+  const wb = createSheetWithHeader(mergedData, finalColumns, 'Pricing_Results');
+  XLSX.writeFile(wb, `Pricing_Results_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+</script>
+</body>
+</html>
