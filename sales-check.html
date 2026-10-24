@@ -42,24 +42,22 @@
 <body>
 <div style="max-width:1200px;margin:0 auto;padding:16px;">
 
-  <!-- شريط التنقل -->
   <div class="topnav">
     <a href="index.html">🏠 الرئيسية</a> | 
     <a href="inventory-update.html">📦 تحديث المخزون</a> | 
     <span class="current">🛒 فحص المبيعات والموردين</span> | 
-    <a href="supplier-sync.html">🏬 مزامنة مورد</a>
+    <a href="supplier-sync.html"> مزامنة مورد</a>
   </div>
 
   <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;">🛒 فحص المبيعات والموردين</h1>
   <p style="text-align:center;font-size:13px;color:#64748b;margin-bottom:16px;">مبيعات اليوم vs مخزوننا، ومين المورد البديل</p>
 
-  <!-- ================= UPLOADS ================= -->
   <div class="card">
-    <h3 style="font-size:15px;font-weight:700;margin:0 0 12px;">📂 رفع الملفات</h3>
+    <h3 style="font-size:15px;font-weight:700;margin:0 0 12px;"> رفع الملفات</h3>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
       <div class="dropzone" id="dz-sales" onclick="document.getElementById('f-sales').click()">
         <input type="file" id="f-sales" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'sales')">
-        <div style="font-size:24px;">🧾</div>
+        <div style="font-size:24px;"></div>
         <div style="font-weight:600;font-size:13px;margin:4px 0;">مبيعات ترينديول (اليوم)</div>
         <div id="st-sales" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
       </div>
@@ -91,7 +89,6 @@
     <div id="warnings" class="warn-box hidden"></div>
   </div>
 
-  <!-- ================= RESULTS ================= -->
   <div id="sec-results" class="hidden">
     <div class="card">
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
@@ -99,7 +96,7 @@
         <div class="stat-box"><div class="stat-num" style="color:#334155" id="s-pieces">0</div><div class="stat-lbl">إجمالي قطع مباعة</div></div>
         <div class="stat-box"><div class="stat-num" style="color:#10b981" id="s-ok">0</div><div class="stat-lbl">✅ متوفر عندنا</div></div>
         <div class="stat-box"><div class="stat-num" style="color:#f59e0b" id="s-short">0</div><div class="stat-lbl">⚠️ مش كفاية</div></div>
-        <div class="stat-box"><div class="stat-num" style="color:#ef4444" id="s-none">0</div><div class="stat-lbl">❌ مش في مخزوننا</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:#ef4444" id="s-none">0</div><div class="stat-lbl"> مش في مخزوننا</div></div>
         <div class="stat-box"><div class="stat-num" style="color:#8b5cf6" id="s-sup">0</div><div class="stat-lbl">🏬 لقيناه عند مورد</div></div>
         <div class="stat-box"><div class="stat-num" style="color:#64748b" id="s-unk">0</div><div class="stat-lbl">❓ مش متعرف عليه</div></div>
       </div>
@@ -113,7 +110,7 @@
         <button class="chip" onclick="setView('none',this)">❌ مش في مخزوننا</button>
         <button class="chip" onclick="setView('short',this)">⚠️ مش كفاية</button>
         <button class="chip" onclick="setView('withsup',this)">🏬 عند مورد بديل</button>
-        <button class="chip" onclick="setView('unknown',this)">❓ مش متعرف عليه</button>
+        <button class="chip" onclick="setView('unknown',this)"> مش متعرف عليه</button>
         <button class="btn btn-primary btn-sm" onclick="exportResults()">📥 تصدير النتائج</button>
       </div>
       <div class="table-wrap">
@@ -130,9 +127,6 @@
 </div>
 
 <script>
-// ============================================================
-// STATE + HELPERS
-// ============================================================
 const S = {
   files: { sales:null, odoo:null, master:null },
   suppliers: [],
@@ -144,7 +138,7 @@ const S = {
 const clean = v => v ? String(v).trim() : '';
 const toInt = v => { if(!v) return 0; const n = parseInt(String(v).replace(/,/g,''),10); return isNaN(n)?0:n; };
 const toNum = v => { if(!v) return 0; const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n)?0:n; };
-const norm = bc => { if(!bc) return ''; const s = String(bc).trim(); return s.replace(/^0+/,'') || s; };
+const norm = bc => { if(!bc) return ''; return String(bc).trim(); };
 const dateStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
 const SPEC = {
@@ -204,8 +198,9 @@ function readRows(file){
   });
 }
 
+// ✅ إصلاح: زيادة الحد إلى 20 صف
 function detect(rows, spec){
-  for (let i=0; i<Math.min(rows.length,10); i++){
+  for (let i=0; i<Math.min(rows.length,20); i++){
     const cells = (rows[i]||[]).map(c => String(c).toLowerCase().trim().replace(/\s+/g,' '));
     const map = {}; let ok = true;
     for (const key in spec){
@@ -243,14 +238,10 @@ function getBoth(map, key){
   return map.has(n) ? map.get(n) : undefined;
 }
 
-// ============================================================
-// PROCESS
-// ============================================================
 async function processAll(){
   if (!S.files.sales || !S.files.odoo) return alert('ارفع ملف المبيعات وملف أودو على الأقل');
   const warnings = [];
   try {
-    // 1) المبيعات → Pivot
     const salesRows = await readRows(S.files.sales);
     const dS = detect(salesRows, SPEC.sales);
     if (!dS) return alert('ملف المبيعات: مش لاقي عمود Stock Code أو Quantity.\nالأعمدة اللي لقيناها: ' + guessHeaders(salesRows));
@@ -273,7 +264,6 @@ async function processAll(){
       if (!p.name && dS.map.name!==undefined) p.name = clean(r[dS.map.name]);
     }
 
-    // 2) أودو
     const odooRows = await readRows(S.files.odoo);
     const dO = detect(odooRows, SPEC.odoo);
     if (!dO) return alert('ملف أودو: مش لاقي عمود الباركود أو الكمية.\nالأعمدة اللي لقيناها: ' + guessHeaders(odooRows));
@@ -283,7 +273,6 @@ async function processAll(){
       putBoth(odooMap, bc, { qty: toNum(r[dO.map.qty]), name: dO.map.name!==undefined ? clean(r[dO.map.name]) : '' });
     }
 
-    // 3) الماستر (اختياري)
     const masterMap = new Map();
     if (S.files.master){
       const mRows = await readRows(S.files.master);
@@ -301,7 +290,6 @@ async function processAll(){
       } else warnings.push('ملف الماستر: مش لاقي الأعمدة المطلوبة، هيتم تجاهله.');
     } else warnings.push('مش رافع الماستر → عدد القطع هيتحسب 1 لكل الأصناف.');
 
-    // 4) الموردين
     S.suppliers = [];
     for (const rowEl of document.querySelectorAll('#supplier-rows .sup-row')){
       const fileInput = rowEl.querySelector('.sup-file');
@@ -322,7 +310,6 @@ async function processAll(){
       } catch(err){ warnings.push(`ملف مورد "${name}": فشل القراءة (${err.message})`); }
     }
 
-    // 5) الحسابات
     S.results = [];
     for (const p of pivot.values()){
       const master = getBoth(masterMap, p.tybarcode) || getBoth(masterMap, p.code);
@@ -361,7 +348,6 @@ async function processAll(){
     const order = { none:0, short:1, unknown:2, ok:3 };
     S.results.sort((a,b) => order[a.status] - order[b.status]);
 
-    // 6) عرض
     document.getElementById('sec-results').classList.remove('hidden');
     document.getElementById('read-summary').innerHTML =
       `📖 ملخص القراءة: المبيعات ${salesRowsRead.toLocaleString()} صف → ${pivot.size.toLocaleString()} صنف | أودو ${odooMap.size.toLocaleString()} باركود | الماستر ${masterMap.size.toLocaleString()} | موردين: ${S.suppliers.length}`;
@@ -375,9 +361,6 @@ async function processAll(){
   } catch(err){ alert('خطأ في المعالجة: ' + err.message); }
 }
 
-// ============================================================
-// RENDER + EXPORT
-// ============================================================
 const STATUS_META = {
   ok:      { badge:'b-ok',    label:'✅ متوفر عندنا' },
   short:   { badge:'b-short', label:'⚠️ مش كفاية' },
@@ -391,7 +374,8 @@ function getVisible(){
     if (S.view==='none' && r.status!=='none') return false;
     if (S.view==='short' && r.status!=='short') return false;
     if (S.view==='unknown' && r.status!=='unknown') return false;
-    if (S.view==='withsup' && !(r.status!=='ok' && r.suppliers.length>0)) return false;
+    // ✅ إصلاح: فلتر withsup الصحيح
+    if (S.view==='withsup' && r.suppliers.length===0) return false;
     if (q && !(`${r.tybarcode} ${r.code} ${r.name}`.toLowerCase().includes(q))) return false;
     return true;
   });
@@ -435,9 +419,13 @@ function renderTable(){
       <td style="font-size:11px;">${supText}</td>
     </tr>`;
   }).join('');
-  document.getElementById('tbl-info').textContent = visible.length>limit
-    ? `عرض ${limit} من ${visible.length.toLocaleString()}`
-    : `عرض ${visible.length.toLocaleString()} صنف`;
+  
+  // ✅ إصلاح: إضافة تنبيه عند وجود أكثر من 500 نتيجة
+  if (visible.length > limit) {
+    document.getElementById('tbl-info').innerHTML = `<span style="color:#f59e0b;">⚠️ عرض أول ${limit} من ${visible.length.toLocaleString()} نتيجة. استخدم الفلاتر لتضييق النتائج.</span>`;
+  } else {
+    document.getElementById('tbl-info').textContent = `عرض ${visible.length.toLocaleString()} صنف`;
+  }
 }
 
 function setView(v, btn){
