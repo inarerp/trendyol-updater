@@ -19,40 +19,37 @@
   .btn-primary{background:#6366f1;color:#fff}.btn-primary:hover{background:#4f46e5}
   .btn-success{background:#10b981;color:#fff}.btn-success:hover{background:#059669}
   .input-field{width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;margin-top:5px}
+  .error-msg{background:#fee2e2;color:#991b1b;padding:10px;border-radius:6px;margin-top:10px;font-size:13px;display:none}
 </style>
 </head>
 <body class="min-h-screen p-6">
 
 <div style="max-width:1000px;margin:0 auto;">
 
-  <!-- شريط التنقل -->
   <div class="topnav">
-    <a href="index.html">🏠 الرئيسية</a> | 
+    <a href="index.html"> الرئيسية</a> | 
     <a href="inventory-update.html">📦 تحديث المخزون</a> | 
-    <a href="sales-check.html"> فحص المبيعات</a> | 
+    <a href="sales-check.html">🛒 فحص المبيعات</a> | 
     <span class="current">🏬 مزامنة مورد</span>
   </div>
 
   <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;margin-bottom:20px;"> مزامنة بيانات الموردين</h1>
 
   <div class="card">
-    <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">📂 رفع الملفات</h3>
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;"> رفع الملفات</h3>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      
       <div class="dropzone" id="dz-master" onclick="document.getElementById('f-master').click()">
         <input type="file" id="f-master" accept=".xlsx,.xls" style="display:none" onchange="pickFile(this,'master')">
         <div style="font-size:24px;">📋</div>
         <div style="font-weight:600;font-size:13px;margin:4px 0;">ملف الماستر (القاعدة)</div>
         <div id="st-master" style="font-size:11px;color:#6b7280;">اضغط للرفع</div>
       </div>
-
       <div class="dropzone" id="dz-supplier" onclick="document.getElementById('f-supplier').click()">
         <input type="file" id="f-supplier" accept=".xlsx,.xls" style="display:none" onchange="pickFile(this,'supplier')">
         <div style="font-size:24px;">🏬</div>
         <div style="font-weight:600;font-size:13px;margin:4px 0;">ملف المورد</div>
         <div id="st-supplier" style="font-size:11px;color:#6b7280;">اضغط للرفع</div>
       </div>
-
     </div>
 
     <div style="margin-top:15px;">
@@ -64,6 +61,7 @@
     <div style="text-align:center;margin-top:20px;">
       <button class="btn btn-primary" id="btn-process" disabled onclick="processSync()" style="padding:10px 30px;font-size:14px;">🔄 بدء المزامنة</button>
     </div>
+    <div id="error-msg" class="error-msg"></div>
   </div>
 
   <div class="card hidden" id="results-card">
@@ -94,7 +92,7 @@ let newProductsData = [];
 function pickFile(input, type) {
   files[type] = input.files[0];
   if(files[type]) {
-    document.getElementById('st-'+type).textContent = `✅ ${files[type].name}`;
+    document.getElementById('st-'+type).textContent = '✅ ' + files[type].name;
     document.getElementById('dz-'+type).classList.add('loaded');
     document.getElementById('btn-process').disabled = !(files.master && files.supplier);
   }
@@ -104,11 +102,12 @@ async function readExcel(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = e => {
-      const data = new Uint8Array(e.target.result);
-      const wb = XLSX.read(data, {type:'array'});
-      resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''}));
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+        resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''}));
+      } catch (err) { reject(err); }
     };
-    reader.onerror = reject;
+    reader.onerror = () => reject(new Error('فشل قراءة الملف'));
     reader.readAsArrayBuffer(file);
   });
 }
@@ -116,18 +115,26 @@ async function readExcel(file) {
 function findCol(headers, names) {
   for(let n of names) {
     let idx = headers.findIndex(h => String(h).toLowerCase().trim() === n.toLowerCase().trim());
-    if(idx !== -1) return idx;
+    if (idx !== -1) return idx;
   }
   for(let n of names) {
     let idx = headers.findIndex(h => String(h).toLowerCase().includes(n.toLowerCase()));
-    if(idx !== -1) return idx;
+    if (idx !== -1) return idx;
   }
   return -1;
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = '⚠️ ' + msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 5000);
 }
 
 async function processSync() {
   document.getElementById('btn-process').textContent = '⏳ جاري العمل...';
   document.getElementById('btn-process').disabled = true;
+  document.getElementById('error-msg').style.display = 'none';
 
   try {
     const masterRaw = await readExcel(files.master);
@@ -143,17 +150,17 @@ async function processSync() {
     const sColSup = findCol(sHeaders, ['المورد', 'Supplier', 'Vendor', 'Supplier Name']);
     
     if(mColBar === -1 || sColBar === -1) {
-      alert('لم يتم العثور على عمود Barcode في أحد الملفات!');
+      showError('لم يتم العثور على عمود Barcode في أحد الملفات!');
       return;
     }
 
     // Build Supplier Map
-    let supplierMap = {};
+    let supplierMap = new Map();
     for(let i=1; i<supplierRaw.length; i++) {
-      let bc = String(supplierRaw[i][sColBar] || '').trim();
+      const bc = String(supplierRaw[i][sColBar] || '').trim();
       if(!bc) continue;
-      let supName = sColSup !== -1 ? String(supplierRaw[i][sColSup] || '') : '';
-      supplierMap[bc] = supName;
+      const supName = sColSup !== -1 ? String(supplierRaw[i][sColSup] || '') : '';
+      supplierMap.set(bc, supName);
     }
 
     const manualSupplierName = document.getElementById('supplier-name-input').value.trim();
@@ -163,20 +170,18 @@ async function processSync() {
 
     // 1. Process Master (Update existing)
     for(let i=1; i<masterRaw.length; i++) {
-      let rowObj = {};
+      const rowObj = {};
       mHeaders.forEach((h, idx) => rowObj[h] = masterRaw[i][idx]);
       
-      let bc = String(masterRaw[i][mColBar] || '').trim();
+      const bc = String(masterRaw[i][mColBar] || '').trim();
       if(!bc) { updatedMasterData.push(rowObj); continue; }
 
-      if(supplierMap.hasOwnProperty(bc)) {
-        // Match found! Update Supplier column
-        let newSup = supplierMap[bc];
+      if(supplierMap.has(bc)) { // ✅ إصلاح: استخدام has() بدلاً من hasOwnProperty()
+        let newSup = supplierMap.get(bc);
         if(!newSup && manualSupplierName) newSup = manualSupplierName;
         
         if(newSup) {
-          // Find the key to update (use original header name)
-          let keyToUpdate = mColSup !== -1 ? mHeaders[mColSup] : (mHeaders.includes('المورد') ? 'المورد' : 'المورد');
+          const keyToUpdate = mColSup !== -1 ? mHeaders[mColSup] : 'المورد';
           rowObj[keyToUpdate] = newSup;
           updatedCount++;
         }
@@ -187,47 +192,45 @@ async function processSync() {
     // 2. Find New Products (In Supplier but not in Master)
     let masterBarcodes = new Set();
     for(let i=1; i<masterRaw.length; i++) {
-      let bc = String(masterRaw[i][mColBar] || '').trim();
+      const bc = String(masterRaw[i][mColBar] || '').trim();
       if(bc) masterBarcodes.add(bc);
     }
 
-    for(let bc in supplierMap) {
+    // ✅ إصلاح: نسخ جميع أعمدة المورد للمنتجات الجديدة
+    for(let i=1; i<supplierRaw.length; i++) {
+      const bc = String(supplierRaw[i][sColBar] || '').trim();
+      if(!bc) continue;
+      
       if(!masterBarcodes.has(bc)) {
-        let newObj = { 'Barcode': bc };
-        // Try to add other columns from supplier file if possible, or just Barcode + Supplier
-        let supName = supplierMap[bc];
+        const newObj = {};
+        sHeaders.forEach((h, idx) => newObj[h] = supplierRaw[i][idx]);
+        
+        let supName = sColSup !== -1 ? String(supplierRaw[i][sColSup] || '') : '';
         if(!supName && manualSupplierName) supName = manualSupplierName;
         newObj['المورد'] = supName;
-        newObj['ملاحظة'] = 'منتج جديد من ملف المورد';
+        newObj['ملاحظة'] = 'منتج جديد - غير موجود في الماستر';
         newProductsData.push(newObj);
       }
     }
 
-    // Update UI
     document.getElementById('stat-updated').textContent = updatedCount;
     document.getElementById('stat-new').textContent = newProductsData.length;
     document.getElementById('results-card').classList.remove('hidden');
-    document.getElementById('btn-process').textContent = '🔄 بدء المزامنة';
-    document.getElementById('btn-process').disabled = false;
 
   } catch(e) {
-    alert('Error: ' + e.message);
-    document.getElementById('btn-process').textContent = '🔄 بدء المزامنة';
+    showError('خطأ في المعالجة: ' + e.message);
+  } finally {
+    document.getElementById('btn-process').textContent = ' بدء المزامنة';
     document.getElementById('btn-process').disabled = false;
   }
 }
 
 function downloadResult() {
   const wb = XLSX.utils.book_new();
-  
-  // Sheet 1: Updated Master
   const ws1 = XLSX.utils.json_to_sheet(updatedMasterData);
   XLSX.utils.book_append_sheet(wb, ws1, 'الماستر المحدث');
-  
-  // Sheet 2: New Products
   const ws2 = XLSX.utils.json_to_sheet(newProductsData);
   XLSX.utils.book_append_sheet(wb, ws2, 'غير موجود في الماستر');
-  
   XLSX.writeFile(wb, `Supplier_Sync_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 </script>
