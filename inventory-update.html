@@ -60,7 +60,6 @@
   .quick-filters{display:flex;gap:6px;flex-wrap:wrap}
   .quick-filters .btn{font-size:11px;padding:4px 10px}
   .dynamic-export{margin-top:10px;padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px}
-  
   .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000}
   .modal{background:#fff;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto}
   .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #f0f2f5}
@@ -80,10 +79,10 @@
 <div style="max-width:1200px;margin:0 auto;padding:16px;">
 
   <div class="topnav">
-    <span class="current">📦 تحديث المخزون</span> | <a href="sales-check.html">🛒 فحص المبيعات</a> | <a href="supplier-sync.html">🏬 مزامنة مورد</a> | <a href="pricing-tool.html">🧮 التسعير</a>
+    <span class="current"> تحديث المخزون</span> | <a href="sales-check.html">🛒 فحص المبيعات</a> | <a href="supplier-sync.html"> مزامنة مورد</a> | <a href="pricing-tool.html">🧮 التسعير</a>
   </div>
 
-  <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;"> تحديث المخزون</h1>
+  <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;">📦 تحديث المخزون</h1>
   <p style="text-align:center;font-size:13px;color:#64748b;margin-bottom:16px;">دمج ترينديول + أودو + الماستر → ملف تصدير الكميات</p>
 
   <div class="card">
@@ -92,31 +91,30 @@
       <div class="dropzone" id="dz-master" onclick="document.getElementById('f-master').click()">
         <input type="file" id="f-master" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'master')">
         <div style="font-size:24px;">📋</div>
-        <div style="font-weight:600;font-size:13px;margin:4px 0;">الماستر (قاعدة البيانات)</div>
-        <div id="st-master" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">الماستر</div>
+        <div id="st-master" style="font-size:11px;color:#6b7280;">اضغط للرفع</div>
       </div>
       <div class="dropzone" id="dz-trendyol" onclick="document.getElementById('f-trendyol').click()">
         <input type="file" id="f-trendyol" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'trendyol')">
         <div style="font-size:24px;">🛒</div>
         <div style="font-weight:600;font-size:13px;margin:4px 0;">ترينديول الجديد</div>
-        <div id="st-trendyol" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
+        <div id="st-trendyol" style="font-size:11px;color:#6b7280;">اضغط للرفع</div>
       </div>
       <div class="dropzone" id="dz-odoo" onclick="document.getElementById('f-odoo').click()">
         <input type="file" id="f-odoo" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'odoo')">
         <div style="font-size:24px;"></div>
         <div style="font-weight:600;font-size:13px;margin:4px 0;">مخزون أودو</div>
-        <div id="st-odoo" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
+        <div id="st-odoo" style="font-size:11px;color:#6b7280;">اضغط للرفع</div>
       </div>
       <div class="dropzone" id="dz-sales" onclick="document.getElementById('f-sales').click()">
         <input type="file" id="f-sales" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'sales')">
         <div style="font-size:24px;">🧾</div>
-        <div style="font-weight:600;font-size:13px;margin:4px 0;">مبيعات اليوم (اختياري)</div>
-        <div id="st-sales" style="font-size:11px;color:#6b7280;">لو فيه مبيعات بعد سحب أودو</div>
+        <div style="font-weight:600;font-size:13px;margin:4px 0;">مبيعات اليوم</div>
+        <div id="st-sales" style="font-size:11px;color:#6b7280;">اختياري</div>
       </div>
     </div>
     <div style="text-align:center;margin-top:14px;">
       <button class="btn btn-primary" id="btn-go" disabled onclick="processAll()">🔄 معالجة الكل</button>
-      <p style="font-size:11px;color:#6b7280;margin-top:6px;">اختار الملفات الأول، وبعدين دوس معالجة مرة واحدة</p>
     </div>
     <div id="read-summary" class="info-box hidden"></div>
     <div id="warnings" class="warn-box hidden"></div>
@@ -125,12 +123,12 @@
   <div class="card">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
       <div class="stat-box"><div class="stat-num" style="color:#6366f1" id="s-total">0</div><div class="stat-lbl">إجمالي (بعد الفلتر)</div></div>
-      <div class="stat-box"><div class="stat-num" style="color:#10b981" id="s-new">0</div><div class="stat-lbl">جديدة </div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#10b981" id="s-new">0</div><div class="stat-lbl">جديدة ⭐</div></div>
       <div class="stat-box"><div class="stat-num" style="color:#ef4444" id="s-new-no-odoo">0</div><div class="stat-lbl">جديدة بدون أودو</div></div>
       <div class="stat-box"><div class="stat-num" style="color:#f59e0b" id="s-changes">0</div><div class="stat-lbl">تغيرات كمية</div></div>
       <div class="stat-box"><div class="stat-num" style="color:#8b5cf6" id="s-no-odoo">0</div><div class="stat-lbl">مش في أودو</div></div>
       <div class="stat-box"><div class="stat-num" style="color:#ec4899" id="s-hold">0</div><div class="stat-lbl">منتجات الهولد 🔒</div></div>
-      <div class="stat-box"><div class="stat-num" style="color:#0ea5e9" id="s-sales">0</div><div class="stat-lbl">اتخصم منها مبيعات اليوم</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#0ea5e9" id="s-sales">0</div><div class="stat-lbl">اتخصم منها مبيعات</div></div>
       <div class="stat-box"><div class="stat-num" style="color:#64748b" id="s-excluded">0</div><div class="stat-lbl">مستبعدة</div></div>
     </div>
   </div>
@@ -139,32 +137,28 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <h3 style="font-size:14px;font-weight:700;margin:0;">🔍 الفلاتر</h3>
       <div style="display:flex;gap:6px;">
-        <button class="btn btn-outline btn-sm" onclick="saveFilterGroup()">💾 حفظ الفلتر</button>
-        <button class="btn btn-outline btn-sm" style="border-color:#ef4444;color:#ef4444" onclick="resetAll()">↻ إعادة تعيين</button>
+        <button class="btn btn-outline btn-sm" onclick="saveFilterGroup()">💾 حفظ</button>
+        <button class="btn btn-outline btn-sm" style="border-color:#ef4444;color:#ef4444" onclick="resetAll()">↻ إعادة</button>
       </div>
     </div>
-
     <div class="saved-filters" id="saved-filters-list"></div>
-
     <div class="filter-row" style="margin-top:10px;">
       <label>فلاتر سريعة:</label>
       <div class="quick-filters">
         <button class="btn btn-outline btn-sm" onclick="quickFilter('zeroing',this)">🔴 تصفير</button>
         <button class="btn btn-outline btn-sm" onclick="quickFilter('restock',this)">🟢 رجوع</button>
-        <button class="btn btn-outline btn-sm" onclick="quickFilter('changes',this)"> تغييرات</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFilter('changes',this)">🟡 تغييرات</button>
         <button class="btn btn-outline btn-sm" onclick="quickFilter('new',this)">🆕 جديدة</button>
         <button class="btn btn-outline btn-sm" onclick="quickFilter('new-no-odoo',this)">🆕❌ بدون أودو</button>
-        <button class="btn btn-outline btn-sm" onclick="quickFilter('hold',this)">🔒 هولد</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFilter('hold',this)"> هولد</button>
         <button class="btn btn-outline btn-sm" onclick="quickFilter('am',this)">🛑 مدير حساب</button>
-        <button class="btn btn-outline btn-sm" onclick="quickFilter('pkg',this)">📦 باكجات</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFilter('pkg',this)"> باكجات</button>
       </div>
     </div>
-
     <div class="filter-row">
       <label>بحث عام:</label>
       <input type="text" id="flt-search" placeholder="باركود، اسم، براند، مورد..." oninput="applyFilters()">
     </div>
-
     <div class="filter-row">
       <label>استبعاد:</label>
       <label style="display:flex;align-items:center;gap:4px;font-weight:400;min-width:auto;">
@@ -172,12 +166,10 @@
         استبعاد الأرشيف وحالات المشاكل
       </label>
     </div>
-
     <div class="filter-row" style="align-items:flex-start;">
       <label style="margin-top:6px;">استبعاد موردين:</label>
       <div class="supplier-grid" id="supplier-grid"><span style="font-size:11px;color:#9ca3af;">ارفع الملفات أولاً</span></div>
     </div>
-
     <div class="filter-row">
       <label>كمية أودو:</label>
       <div class="qty-btns" id="odoo-btns">
@@ -189,7 +181,6 @@
       <input type="number" id="flt-odoo-min" placeholder="من" class="hidden" oninput="applyFilters()">
       <input type="number" id="flt-odoo-max" placeholder="إلى" class="hidden" oninput="applyFilters()">
     </div>
-
     <div class="filter-row">
       <label>كمية ترينديول:</label>
       <div class="qty-btns" id="ty-btns">
@@ -201,7 +192,6 @@
       <input type="number" id="flt-ty-min" placeholder="من" class="hidden" oninput="applyFilters()">
       <input type="number" id="flt-ty-max" placeholder="إلى" class="hidden" oninput="applyFilters()">
     </div>
-
     <div class="filter-row">
       <label>المنتجات:</label>
       <div class="qty-btns" id="new-btns">
@@ -213,7 +203,7 @@
   </div>
 
   <div class="card hidden" id="sec-hold-report">
-    <h3 style="font-size:14px;font-weight:700;margin:0 0 10px;color:#ec4899;">⚠️ تنبيه: منتجات عليها Hold ودخل لها مخزون جديد</h3>
+    <h3 style="font-size:14px;font-weight:700;margin:0 0 10px;color:#ec4899;">️ تنبيه: منتجات عليها Hold ودخل لها مخزون جديد</h3>
     <div class="table-wrap" style="max-height:250px;">
       <table><thead><tr><th>الباركود</th><th>الاسم</th><th>المورد</th><th>الكمية</th></tr></thead>
       <tbody id="tbody-hold"></tbody></table>
@@ -249,48 +239,40 @@
       <button class="btn btn-success" onclick="exportNew()">⭐ الجديدة (<span id="c-new">0</span>)</button>
       <button class="btn btn-warning" onclick="exportTrendyol()">🛒 ملف ترينديول (<span id="c-ty">0</span>)</button>
     </div>
-
     <div id="dynamic-export" class="dynamic-export hidden">
       <div style="font-size:12px;font-weight:600;margin-bottom:6px;" id="dynamic-export-label"></div>
       <button class="btn btn-primary btn-sm" id="dynamic-export-btn" onclick="exportDynamic()">📥 تصدير نتيجة الفلتر</button>
     </div>
-
-    <p style="font-size:11px;color:#6b7280;margin-top:6px;">
-       الماستر المحدث بيطلع كل المنتجات. ملف ترينديول بيطلع التغييرات فقط.<br>
-      📦 الباكجات: سعر الجملة = مجموع تكاليف المكونات، المخزون = أقل مكون متاح.
-    </p>
   </div>
 </div>
 
 <div id="pkg-modal" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title"> بناء الباكج</div>
-      <button class="modal-close" onclick="closePkgModal()">✕</button>
+      <div class="modal-title">📦 بناء الباكج</div>
+      <button class="modal-close" onclick="closePkgModal()"></button>
     </div>
     <div class="info-box" style="margin-bottom:12px;">
-      💡 أضف باركودات المكونات وكمياتها. الصيغة النهائية: <code style="background:#fff;padding:2px 6px;border-radius:4px;">barcode1:qty1,barcode2:qty2</code>
+      💡 أضف باركودات المكونات وكمياتها. الصيغة: <code style="background:#fff;padding:2px 6px;border-radius:4px;">barcode1:qty1,barcode2:qty2</code>
     </div>
-    
     <div class="pkg-input-row">
       <input type="text" id="pkg-barcode" placeholder="باركود المكون" onkeypress="if(event.key==='Enter')addPkgItem()">
       <input type="number" id="pkg-qty" placeholder="الكمية" min="1" value="1" onkeypress="if(event.key==='Enter')addPkgItem()">
       <button class="btn btn-primary btn-sm" onclick="addPkgItem()">➕ إضافة</button>
     </div>
-
     <div class="pkg-list" id="pkg-list">
-      <div style="padding:12px;text-align:center;color:#9ca3af;font-size:12px;">لا توجد مكونات مضافة</div>
+      <div style="padding:12px;text-align:center;color:#9ca3af;font-size:12px;">لا توجد مكونات</div>
     </div>
-
     <div style="font-size:12px;font-weight:600;color:#374151;margin-top:12px;">الصيغة المُولَّدة:</div>
     <div class="pkg-string" id="pkg-string">(فارغ)</div>
-
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-success btn-sm" onclick="copyPkgString()">📋 نسخ</button>
+      <button class="btn btn-success btn-sm" onclick="copyPkgString()"> نسخ</button>
       <button class="btn btn-outline btn-sm" onclick="clearPkgList()">🗑️ مسح الكل</button>
     </div>
   </div>
 </div>
+
+<button onclick="openPkgModal()" style="position:fixed;bottom:30px;left:30px;background:#6366f1;color:#fff;border:none;border-radius:50%;width:60px;height:60px;font-size:24px;cursor:pointer;box-shadow:0 4px 12px rgba(99,102,241,0.4);z-index:100;" title="بناء باكج">📦</button>
 
 <script>
 const S = {
@@ -301,7 +283,7 @@ const S = {
   ready: { master:false, trendyol:false, odoo:false, sales:false },
   pkgItems: []
 };
-const STORAGE_KEY = 'trendyol_saved_filters_v8';
+const STORAGE_KEY = 'trendyol_saved_filters_v9';
 
 const clean = v => v ? String(v).trim() : '';
 const toInt = v => { if(!v) return 0; const n = parseInt(String(v).replace(/,/g,''),10); return isNaN(n)?0:n; };
@@ -458,31 +440,17 @@ function openPkgModal() {
 function closePkgModal() {
   document.getElementById('pkg-modal').classList.add('hidden');
 }
-
-// ✅ إصلاح #5: التحقق من تكرار الباركود
 function addPkgItem() {
   const bc = document.getElementById('pkg-barcode').value.trim();
   const qty = parseInt(document.getElementById('pkg-qty').value) || 1;
   if (!bc) { alert('أدخل الباركود'); return; }
   if (qty < 1) { alert('الكمية يجب أن تكون 1 أو أكثر'); return; }
-  
-  const existing = S.pkgItems.find(item => item.barcode === bc);
-  if (existing) {
-    if (confirm('هذا الباركود موجود بالفعل. هل تريد تحديث الكمية؟')) {
-      existing.qty = qty;
-    } else {
-      return;
-    }
-  } else {
-    S.pkgItems.push({ barcode: bc, qty: qty });
-  }
-  
+  S.pkgItems.push({ barcode: bc, qty: qty });
   document.getElementById('pkg-barcode').value = '';
   document.getElementById('pkg-qty').value = '1';
   document.getElementById('pkg-barcode').focus();
   renderPkgList();
 }
-
 function removePkgItem(idx) {
   S.pkgItems.splice(idx, 1);
   renderPkgList();
@@ -494,20 +462,17 @@ function clearPkgList() {
 function renderPkgList() {
   const list = document.getElementById('pkg-list');
   const str = document.getElementById('pkg-string');
-  
   if (S.pkgItems.length === 0) {
-    list.innerHTML = '<div style="padding:12px;text-align:center;color:#9ca3af;font-size:12px;">لا توجد مكونات مضافة</div>';
+    list.innerHTML = '<div style="padding:12px;text-align:center;color:#9ca3af;font-size:12px;">لا توجد مكونات</div>';
     str.textContent = '(فارغ)';
     return;
   }
-  
   list.innerHTML = S.pkgItems.map((item, idx) => `
     <div class="pkg-item">
       <span><strong>${item.barcode}</strong> × ${item.qty}</span>
       <button class="btn btn-danger btn-sm" onclick="removePkgItem(${idx})">🗑️</button>
     </div>
   `).join('');
-  
   str.textContent = S.pkgItems.map(i => `${i.barcode}:${i.qty}`).join(',');
 }
 function copyPkgString() {
@@ -586,7 +551,6 @@ async function processAll(){
 
     const tRows = await readRows(S.files.trendyol);
     const dT = detect(tRows, SPEC.trendyol);
-    
     const trendyolMap = new Map();
     if (dT) {
       for (const r of tRows.slice(dT.headerRow+1)){
@@ -617,7 +581,7 @@ async function processAll(){
       const tyData = trendyolMap.get(nBc) || {};
       const isNew = Object.keys(tyData).length === 0;
 
-      const name = tyData.name || (dM.map.name!==undefined ? clean(r[dM.map.name]) : '');
+      const name = tyData.name || '';
       const brand = tyData.brand || '';
       const originalPrice = tyData.originalPrice || 0;
       const salePrice = tyData.salePrice || 0;
@@ -645,12 +609,13 @@ async function processAll(){
       let exportableStock = 0;
       let packQty = pieces > 0 ? pieces : 1;
 
+      const sold = salesMap.size ? (salesMap.get(nBc) || 0) : 0;
+
       if (isPackage(odooBarcodeRaw)) {
         isPkg = true;
         pkgCount++;
         pkgComponents = parsePackage(odooBarcodeRaw);
         
-        let totalWholesale = 0;
         let minStockRatio = Infinity;
         let totalPackQty = 0;
         let allFound = true;
@@ -661,7 +626,6 @@ async function processAll(){
             allFound = false;
             continue;
           }
-          totalWholesale += compData.wholesalePrice * comp.qty;
           if (compData.qty > 0) {
             const ratio = Math.floor(compData.qty / comp.qty);
             if (ratio < minStockRatio) minStockRatio = ratio;
@@ -674,9 +638,10 @@ async function processAll(){
         if (allFound && minStockRatio !== Infinity) {
           hasOdoo = true;
           odooQty = minStockRatio;
-          // ✅ إصلاح #1: خصم مبيعات اليوم من مخزون الباكج
-          const sold = salesMap.size ? (salesMap.get(nBc) || 0) : 0;
           exportableStock = Math.max(0, minStockRatio - sold);
+        } else if (!allFound) {
+          hasOdoo = false;
+          exportableStock = 0;
         }
         packQty = totalPackQty > 0 ? totalPackQty : 1;
       } else {
@@ -685,15 +650,12 @@ async function processAll(){
         hasOdoo = odoo !== undefined;
         odooQty = hasOdoo ? odoo.qty : 0;
         const baseExportable = hasOdoo ? Math.floor(odooQty / packQty) : 0;
-        const sold = salesMap.size ? (salesMap.get(nBc) || 0) : 0;
         exportableStock = Math.max(0, baseExportable - sold);
       }
 
       if (managerStop) exportableStock = 0;
       
-      const sold = salesMap.size ? (salesMap.get(nBc) || 0) : 0;
-      // ✅ إصلاح #2: تبسيط حساب affectedBySales
-      const baseExportableBeforeSales = hasOdoo ? Math.floor(odooQty / packQty) : 0;
+      const baseExportableBeforeSales = hasOdoo ? (isPkg ? odooQty : Math.floor(odooQty / packQty)) : 0;
       const affectedBySales = sold > 0 && !managerStop && exportableStock < baseExportableBeforeSales;
 
       const isChange = stock !== exportableStock;
@@ -763,7 +725,7 @@ async function processAll(){
     loadSavedFilters();
     applyFilters();
 
-  } catch(err){ alert('خطأ: ' + err.message); }
+  } catch(err){ alert('خطأ: ' + err.message); console.error(err); }
 }
 
 function setOdooFilter(mode, btn){
@@ -896,7 +858,7 @@ function saveFilterGroup(){
 function loadSavedFilters(){
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   const c = document.getElementById('saved-filters-list');
-  if (!saved.length){ c.innerHTML = '<span style="font-size:11px;color:#9ca3af;">لا توجد فلاتر</span>'; return; }
+  if (!saved.length){ c.innerHTML = '<span style="font-size:11px;color:#9ca3af;">لا توجد فلاتر محفوظة</span>'; return; }
   c.innerHTML = saved.map((f,i)=>`
     <div class="saved-filter-chip" onclick="applySavedFilter(${i},this)">
       <span>${f.name}</span>
@@ -954,7 +916,7 @@ function renderAmReport(items){
   sec.classList.remove('hidden');
   tbody.innerHTML = items.slice(0,300).map(i=>{
     let note = '—';
-    if (i.amConflict) note = '⚠️ Hold + مدير حساب';
+    if (i.amConflict) note = '️ Hold + مدير حساب';
     if (i.fixedRaw && isNaN(parseFloat(String(i.fixedRaw).replace(/,/g,'')))) note = '⚠️ السعر الثابت غير صالح';
     return `<tr>
       <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${i.barcode}</td>
@@ -989,9 +951,8 @@ function renderTable(){
     else if (item.isChange) badge = '<span class="badge b-short">تغيير</span>';
     else badge = '<span class="badge b-ok">ثابت</span>';
 
-    // ✅ إصلاح #3: عرض الكمية المتاحة للباكجات
     const odooDisplay = item.isPackage 
-      ? `<span style="font-size:10px;color:#1e40af;">📦 ${item.pkgComponents.length} مكون | ${item.odooQty} متاح</span>`
+      ? `<span style="font-size:10px;color:#1e40af;"> ${item.pkgComponents.length} مكون | ${item.odooQty > 0 ? item.odooQty + ' متاح' : 'غير متاح'}</span>`
       : (item.hasOdoo ? item.odooQty : '<span style="color:#ef4444;">—</span>');
 
     return `<tr>
@@ -1036,7 +997,7 @@ function updateStats(){
   document.getElementById('s-new').textContent = c(i=>i.isNew).toLocaleString();
   document.getElementById('s-new-no-odoo').textContent = c(i=>i.isNew && !i.hasOdoo && !i.isPackage).toLocaleString();
   document.getElementById('s-changes').textContent = c(i=>i.isChange).toLocaleString();
-  document.getElementById('s-no-odoo').textContent = c(i=>!i.hasOdoo && !i.isPackage).toLocaleString();
+  document.getElementById('s-no-odoo').textContent = c(i=>!i.hasOdoo).toLocaleString();
   document.getElementById('s-hold').textContent = c(i=>i.holdStock).toLocaleString();
   document.getElementById('s-sales').textContent = c(i=>i.affectedBySales).toLocaleString();
   document.getElementById('s-excluded').textContent = (S.merged.length - S.filtered.length).toLocaleString();
@@ -1080,19 +1041,34 @@ function updateDynamicExport(){
   sec.classList.remove('hidden');
 }
 
-function protectBarcodeCols(ws, headers){
-  if (!ws['!ref']) return;
+// ============================================================
+// ✅ دالة تصدير الماستر والمنتجات الجديدة (بدون الهيدر الثلاثي)
+// ============================================================
+function exportMasterSheet(data, sheetName, fileName) {
+  if (!data.length) return alert('لا توجد بيانات');
+  
+  const ws = XLSX.utils.json_to_sheet(data);
+  
+  // حماية أعمدة الباركود (تحويل لنص للحفاظ على الأصفار البادئة)
+  const headers = Object.keys(data[0]);
   const range = XLSX.utils.decode_range(ws['!ref']);
-  const cols = [];
-  headers.forEach((h,c)=>{ if (String(h).toLowerCase().includes('barcode')) cols.push(c); });
-  for (let r=1; r<=range.e.r; r++){
-    for (const c of cols){
-      const ref = XLSX.utils.encode_cell({r,c});
-      if (ws[ref]) { ws[ref].t='s'; ws[ref].v = String(ws[ref].v); }
+  for (let r = 1; r <= range.e.r; r++) {
+    for (let c = 0; c < headers.length; c++) {
+      if (headers[c].toLowerCase().includes('barcode') || headers[c].includes('باركود')) {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (ws[ref]) { ws[ref].t = 's'; ws[ref].v = String(ws[ref].v); }
+      }
     }
   }
+  
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, fileName);
 }
 
+// ============================================================
+// ✅ دالة تصدير ملفات ترينديول (بالهيدر الثلاثي)
+// ============================================================
 function createSheetWithHeader(data, columns, sheetName) {
   const aoa = [];
   const row1 = ['Product Information', 'Fields to Update'];
@@ -1125,7 +1101,6 @@ function createSheetWithHeader(data, columns, sheetName) {
   return wb;
 }
 
-// ✅ إصلاح #4: استخدام packQty بدلاً من pieces
 function trendyolRow(i){
   return {
     'Barcode': i.barcode,
@@ -1139,6 +1114,20 @@ function trendyolRow(i){
   };
 }
 
+function trendyolPkgRow(i){
+  return {
+    'Barcode': i.barcode,
+    'Original (List) Price': i.originalPrice,
+    'Trendyol Sale Price (VAT included)': i.salePrice,
+    'Product Stock Quantity': i.exportableStock,
+    'Barcode odoo': i.odooBarcode,
+    'VAT': i.vatMult,
+    'السعر الثابت': i.fixedRaw || '',
+    'عدد القطع': 1
+  };
+}
+
+// ✅ تصدير الماستر - يبدأ من الصف الأول مباشرة (بدون هيدر ثلاثي)
 function exportMaster(){
   if (!S.merged.length) return alert('لا توجد منتجات');
   const data = S.merged.map(i=>({
@@ -1162,11 +1151,10 @@ function exportMaster(){
     'Is New': i.isNew ? 'Yes' : 'No',
     'Has Change': i.isChange ? 'Yes' : 'No'
   }));
-  const columns = Object.keys(data[0]);
-  const wb = createSheetWithHeader(data, columns, 'Master');
-  XLSX.writeFile(wb, `Master_Updated_${dateStr()}.xlsx`);
+  exportMasterSheet(data, 'Master', `Master_Updated_${dateStr()}.xlsx`);
 }
 
+// ✅ تصدير المنتجات الجديدة - يبدأ من الصف الأول مباشرة (بدون هيدر ثلاثي)
 function exportNew(){
   const data = S.filtered.filter(i=>i.isNew).map(i=>({
     'Barcode': i.barcode,
@@ -1178,12 +1166,10 @@ function exportNew(){
     'Odoo Qty': (i.hasOdoo || i.isPackage) ? i.odooQty : '',
     'Status': i.status
   }));
-  if (!data.length) return alert('لا توجد منتجات جديدة');
-  const columns = Object.keys(data[0]);
-  const wb = createSheetWithHeader(data, columns, 'New Products');
-  XLSX.writeFile(wb, `New_Products_${dateStr()}.xlsx`);
+  exportMasterSheet(data, 'New Products', `New_Products_${dateStr()}.xlsx`);
 }
 
+// ✅ تصدير ملف ترينديول - بالهيدر الثلاثي (للرفع على ترينديول)
 function exportTrendyol(){
   const data = S.filtered.filter(i=>i.isChange && (!i.holdStock || i.managerStop)).map(trendyolRow);
   if (!data.length) return alert('لا توجد تغييرات');
@@ -1192,6 +1178,7 @@ function exportTrendyol(){
   XLSX.writeFile(wb, `Trendyol_Export_${dateStr()}.xlsx`);
 }
 
+// ✅ التصدير الديناميكي - بالهيدر الثلاثي (للرفع على ترينديول)
 function exportDynamic(){
   const visible = S.filtered;
   if (!visible.length) return alert('لا توجد نتائج');
@@ -1202,7 +1189,7 @@ function exportDynamic(){
     columns = ['Barcode', 'Original (List) Price', 'Trendyol Sale Price (VAT included)', 'Product Stock Quantity', 'Barcode odoo', 'VAT', 'السعر الثابت', 'عدد القطع'];
     name = `Trendyol_${S.quickFilterActive}_${dateStr()}.xlsx`;
   } else if (S.quickFilterActive === 'pkg'){
-    data = visible.filter(i=>i.isPackage).map(trendyolRow);
+    data = visible.filter(i=>i.isPackage).map(trendyolPkgRow);
     columns = ['Barcode', 'Original (List) Price', 'Trendyol Sale Price (VAT included)', 'Product Stock Quantity', 'Barcode odoo', 'VAT', 'السعر الثابت', 'عدد القطع'];
     name = `Packages_${dateStr()}.xlsx`;
   } else if (S.quickFilterActive === 'hold'){
@@ -1233,8 +1220,5 @@ function exportDynamic(){
   XLSX.writeFile(wb, name);
 }
 </script>
-
-<button onclick="openPkgModal()" style="position:fixed;bottom:30px;left:30px;background:#6366f1;color:#fff;border:none;border-radius:50%;width:60px;height:60px;font-size:24px;cursor:pointer;box-shadow:0 4px 12px rgba(99,102,241,0.4);z-index:100;" title="بناء باكج">📦</button>
-
 </body>
 </html>
