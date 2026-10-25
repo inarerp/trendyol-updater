@@ -61,7 +61,6 @@
   .quick-filters .btn{font-size:11px;padding:4px 10px}
   .dynamic-export{margin-top:10px;padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px}
   
-  /* Modal Styles */
   .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000}
   .modal{background:#fff;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto}
   .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #f0f2f5}
@@ -81,7 +80,7 @@
 <div style="max-width:1200px;margin:0 auto;padding:16px;">
 
   <div class="topnav">
-    <span class="current">📦 تحديث المخزون</span> | <a href="sales-check.html"> فحص المبيعات</a> | <a href="supplier-sync.html">🏬 مزامنة مورد</a> | <a href="pricing-tool.html">🧮 التسعير</a>
+    <span class="current">📦 تحديث المخزون</span> | <a href="sales-check.html">🛒 فحص المبيعات</a> | <a href="supplier-sync.html">🏬 مزامنة مورد</a> | <a href="pricing-tool.html">🧮 التسعير</a>
   </div>
 
   <h1 style="text-align:center;font-size:22px;font-weight:700;color:#1e293b;"> تحديث المخزون</h1>
@@ -98,13 +97,13 @@
       </div>
       <div class="dropzone" id="dz-trendyol" onclick="document.getElementById('f-trendyol').click()">
         <input type="file" id="f-trendyol" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'trendyol')">
-        <div style="font-size:24px;"></div>
+        <div style="font-size:24px;">🛒</div>
         <div style="font-weight:600;font-size:13px;margin:4px 0;">ترينديول الجديد</div>
         <div id="st-trendyol" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
       </div>
       <div class="dropzone" id="dz-odoo" onclick="document.getElementById('f-odoo').click()">
         <input type="file" id="f-odoo" accept=".xlsx,.xls,.csv" style="display:none" onchange="pickFile(this,'odoo')">
-        <div style="font-size:24px;">📦</div>
+        <div style="font-size:24px;"></div>
         <div style="font-weight:600;font-size:13px;margin:4px 0;">مخزون أودو</div>
         <div id="st-odoo" style="font-size:11px;color:#6b7280;">اضغط لرفع الملف</div>
       </div>
@@ -126,7 +125,7 @@
   <div class="card">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
       <div class="stat-box"><div class="stat-num" style="color:#6366f1" id="s-total">0</div><div class="stat-lbl">إجمالي (بعد الفلتر)</div></div>
-      <div class="stat-box"><div class="stat-num" style="color:#10b981" id="s-new">0</div><div class="stat-lbl">جديدة ⭐</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#10b981" id="s-new">0</div><div class="stat-lbl">جديدة </div></div>
       <div class="stat-box"><div class="stat-num" style="color:#ef4444" id="s-new-no-odoo">0</div><div class="stat-lbl">جديدة بدون أودو</div></div>
       <div class="stat-box"><div class="stat-num" style="color:#f59e0b" id="s-changes">0</div><div class="stat-lbl">تغيرات كمية</div></div>
       <div class="stat-box"><div class="stat-num" style="color:#8b5cf6" id="s-no-odoo">0</div><div class="stat-lbl">مش في أودو</div></div>
@@ -140,7 +139,7 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <h3 style="font-size:14px;font-weight:700;margin:0;">🔍 الفلاتر</h3>
       <div style="display:flex;gap:6px;">
-        <button class="btn btn-outline btn-sm" onclick="saveFilterGroup()"> حفظ الفلتر</button>
+        <button class="btn btn-outline btn-sm" onclick="saveFilterGroup()">💾 حفظ الفلتر</button>
         <button class="btn btn-outline btn-sm" style="border-color:#ef4444;color:#ef4444" onclick="resetAll()">↻ إعادة تعيين</button>
       </div>
     </div>
@@ -155,9 +154,9 @@
         <button class="btn btn-outline btn-sm" onclick="quickFilter('changes',this)"> تغييرات</button>
         <button class="btn btn-outline btn-sm" onclick="quickFilter('new',this)">🆕 جديدة</button>
         <button class="btn btn-outline btn-sm" onclick="quickFilter('new-no-odoo',this)">🆕❌ بدون أودو</button>
-        <button class="btn btn-outline btn-sm" onclick="quickFilter('hold',this)"> هولد</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFilter('hold',this)">🔒 هولد</button>
         <button class="btn btn-outline btn-sm" onclick="quickFilter('am',this)">🛑 مدير حساب</button>
-        <button class="btn btn-outline btn-sm" onclick="quickFilter('pkg',this)"> باكجات</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFilter('pkg',this)">📦 باكجات</button>
       </div>
     </div>
 
@@ -230,7 +229,7 @@
   </div>
 
   <div class="card">
-    <h3 style="font-size:14px;font-weight:700;margin:0 0 10px;"> المنتجات (نتيجة الفلاتر)</h3>
+    <h3 style="font-size:14px;font-weight:700;margin:0 0 10px;">📋 المنتجات (نتيجة الفلاتر)</h3>
     <div class="table-wrap">
       <table>
         <thead><tr>
@@ -257,17 +256,16 @@
     </div>
 
     <p style="font-size:11px;color:#6b7280;margin-top:6px;">
-      💡 الماستر المحدث بيطلع كل المنتجات. ملف ترينديول بيطلع التغييرات فقط.<br>
+       الماستر المحدث بيطلع كل المنتجات. ملف ترينديول بيطلع التغييرات فقط.<br>
       📦 الباكجات: سعر الجملة = مجموع تكاليف المكونات، المخزون = أقل مكون متاح.
     </p>
   </div>
 </div>
 
-<!-- Package Builder Modal -->
 <div id="pkg-modal" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
-      <div class="modal-title">📦 بناء الباكج</div>
+      <div class="modal-title"> بناء الباكج</div>
       <button class="modal-close" onclick="closePkgModal()">✕</button>
     </div>
     <div class="info-box" style="margin-bottom:12px;">
@@ -289,7 +287,7 @@
 
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn btn-success btn-sm" onclick="copyPkgString()">📋 نسخ</button>
-      <button class="btn btn-outline btn-sm" onclick="clearPkgList()">️ مسح الكل</button>
+      <button class="btn btn-outline btn-sm" onclick="clearPkgList()">🗑️ مسح الكل</button>
     </div>
   </div>
 </div>
@@ -312,7 +310,6 @@ const norm = bc => { if(!bc) return ''; const s = String(bc).trim(); return s.re
 const splitSup = s => s ? s.split(/[,،]/).map(x=>x.trim()).filter(Boolean) : [];
 const dateStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
-// Package detection
 function isPackage(value) {
   if (!value) return false;
   const s = String(value).trim();
@@ -454,9 +451,6 @@ function getBoth(map, key){
   return map.has(n) ? map.get(n) : undefined;
 }
 
-// ============================================================
-// PACKAGE BUILDER MODAL
-// ============================================================
 function openPkgModal() {
   document.getElementById('pkg-modal').classList.remove('hidden');
   document.getElementById('pkg-barcode').focus();
@@ -464,18 +458,31 @@ function openPkgModal() {
 function closePkgModal() {
   document.getElementById('pkg-modal').classList.add('hidden');
 }
+
+// ✅ إصلاح #5: التحقق من تكرار الباركود
 function addPkgItem() {
   const bc = document.getElementById('pkg-barcode').value.trim();
   const qty = parseInt(document.getElementById('pkg-qty').value) || 1;
   if (!bc) { alert('أدخل الباركود'); return; }
   if (qty < 1) { alert('الكمية يجب أن تكون 1 أو أكثر'); return; }
   
-  S.pkgItems.push({ barcode: bc, qty: qty });
+  const existing = S.pkgItems.find(item => item.barcode === bc);
+  if (existing) {
+    if (confirm('هذا الباركود موجود بالفعل. هل تريد تحديث الكمية؟')) {
+      existing.qty = qty;
+    } else {
+      return;
+    }
+  } else {
+    S.pkgItems.push({ barcode: bc, qty: qty });
+  }
+  
   document.getElementById('pkg-barcode').value = '';
   document.getElementById('pkg-qty').value = '1';
   document.getElementById('pkg-barcode').focus();
   renderPkgList();
 }
+
 function removePkgItem(idx) {
   S.pkgItems.splice(idx, 1);
   renderPkgList();
@@ -497,7 +504,7 @@ function renderPkgList() {
   list.innerHTML = S.pkgItems.map((item, idx) => `
     <div class="pkg-item">
       <span><strong>${item.barcode}</strong> × ${item.qty}</span>
-      <button class="btn btn-danger btn-sm" onclick="removePkgItem(${idx})"></button>
+      <button class="btn btn-danger btn-sm" onclick="removePkgItem(${idx})">🗑️</button>
     </div>
   `).join('');
   
@@ -509,7 +516,6 @@ function copyPkgString() {
   navigator.clipboard.writeText(str).then(() => {
     alert('✅ تم النسخ: ' + str);
   }).catch(() => {
-    // Fallback
     const ta = document.createElement('textarea');
     ta.value = str;
     document.body.appendChild(ta);
@@ -520,13 +526,9 @@ function copyPkgString() {
   });
 }
 
-// ============================================================
-// PROCESS
-// ============================================================
 async function processAll(){
   const warnings = [];
   try {
-    // ---------- أودو ----------
     const odooRows = await readRows(S.files.odoo);
     const dO = detect(odooRows, SPEC.odoo);
     if (!dO) return alert('ملف أودو: مش لاقي عمود الباركود أو الكمية.\nالأعمدة: ' + guessHeaders(odooRows));
@@ -546,7 +548,6 @@ async function processAll(){
       });
     }
 
-    // ---------- الماستر ----------
     const masterMap = new Map();
     const mRows = await readRows(S.files.master);
     const dM = detect(mRows, SPEC.master);
@@ -564,7 +565,6 @@ async function processAll(){
       });
     }
 
-    // ---------- مبيعات اليوم ----------
     const salesMap = new Map(); S.salesInfo = null;
     if (S.files.sales){
       const sRows = await readRows(S.files.sales);
@@ -584,7 +584,6 @@ async function processAll(){
       }
     }
 
-    // ---------- ترينديول ----------
     const tRows = await readRows(S.files.trendyol);
     const dT = detect(tRows, SPEC.trendyol);
     
@@ -611,7 +610,6 @@ async function processAll(){
     const supSet = new Set();
     let pkgCount = 0;
 
-    // معالجة الماستر
     for (const r of mRows.slice(dM.headerRow+1)){
       const bc = clean(r[dM.map.barcode]); if (!bc) continue;
       const nBc = norm(bc);
@@ -640,7 +638,6 @@ async function processAll(){
       let odooBarcodeRaw = (dM.map.odoo!==undefined ? clean(r[dM.map.odoo]) : '') || tyData.ssc || tyData.odooCol || bc;
       const supplier = dM.map.supplier!==undefined ? clean(r[dM.map.supplier]) : '';
 
-      // ===== معالجة الباكج =====
       let isPkg = false;
       let pkgComponents = [];
       let odooQty = 0;
@@ -656,7 +653,6 @@ async function processAll(){
         let totalWholesale = 0;
         let minStockRatio = Infinity;
         let totalPackQty = 0;
-        let pkgVatRate = vatRate;
         let allFound = true;
 
         for (const comp of pkgComponents) {
@@ -678,20 +674,12 @@ async function processAll(){
         if (allFound && minStockRatio !== Infinity) {
           hasOdoo = true;
           odooQty = minStockRatio;
-          exportableStock = minStockRatio;
+          // ✅ إصلاح #1: خصم مبيعات اليوم من مخزون الباكج
+          const sold = salesMap.size ? (salesMap.get(nBc) || 0) : 0;
+          exportableStock = Math.max(0, minStockRatio - sold);
         }
         packQty = totalPackQty > 0 ? totalPackQty : 1;
-        
-        // تحديث VAT للباكج من أول مكون موجود
-        for (const comp of pkgComponents) {
-          const compData = getBoth(odooMap, comp.barcode);
-          if (compData) {
-            // جميع المكونات نفس نوع الضريبة حسب ما ذكرته
-            break;
-          }
-        }
       } else {
-        // منتج عادي
         let odoo = getBoth(odooMap, odooBarcodeRaw);
         if (odoo === undefined) odoo = getBoth(odooMap, bc);
         hasOdoo = odoo !== undefined;
@@ -702,8 +690,11 @@ async function processAll(){
       }
 
       if (managerStop) exportableStock = 0;
+      
       const sold = salesMap.size ? (salesMap.get(nBc) || 0) : 0;
-      const affectedBySales = sold > 0 && !managerStop && exportableStock !== Math.max(0, (hasOdoo ? Math.floor(odooQty / packQty) : 0) - sold);
+      // ✅ إصلاح #2: تبسيط حساب affectedBySales
+      const baseExportableBeforeSales = hasOdoo ? Math.floor(odooQty / packQty) : 0;
+      const affectedBySales = sold > 0 && !managerStop && exportableStock < baseExportableBeforeSales;
 
       const isChange = stock !== exportableStock;
       const isProblem = isProblemStatus(status, statusDesc);
@@ -724,7 +715,6 @@ async function processAll(){
       });
     }
 
-    // إضافة منتجات جديدة من ترينديول
     for (const [nBc, tyData] of trendyolMap.entries()){
       if (!getBoth(masterMap, nBc)) {
         const odoo = getBoth(odooMap, nBc);
@@ -765,7 +755,7 @@ async function processAll(){
     document.getElementById('read-summary').classList.remove('hidden');
 
     const w = document.getElementById('warnings');
-    if (warnings.length){ w.innerHTML = '️ ' + warnings.join('<br>️ '); w.classList.remove('hidden'); }
+    if (warnings.length){ w.innerHTML = '⚠️ ' + warnings.join('<br>⚠️ '); w.classList.remove('hidden'); }
     else w.classList.add('hidden');
 
     renderSuppliers();
@@ -776,9 +766,6 @@ async function processAll(){
   } catch(err){ alert('خطأ: ' + err.message); }
 }
 
-// ============================================================
-// FILTERS
-// ============================================================
 function setOdooFilter(mode, btn){
   S.odooFilter = mode;
   document.querySelectorAll('#odoo-btns button').forEach(b=>b.classList.remove('active'));
@@ -972,7 +959,7 @@ function renderAmReport(items){
     return `<tr>
       <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${i.barcode}</td>
       <td style="direction:ltr;text-align:left;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${i.name || '—'}</td>
-      <td>${i.amRaw ? '<span class="badge b-am"> '+i.amRaw+'</span>' : '—'}</td>
+      <td>${i.amRaw ? '<span class="badge b-am">🛑 '+i.amRaw+'</span>' : '—'}</td>
       <td style="text-align:center;font-weight:700;">${i.fixedRaw || '—'}</td>
       <td style="font-size:11px;">${note}</td>
     </tr>`;
@@ -990,7 +977,7 @@ function renderTable(){
   }
   tbody.innerHTML = visible.slice(0,limit).map(item => {
     let badge;
-    if (item.isPackage) badge = '<span class="badge b-pkg"> باكج</span>';
+    if (item.isPackage) badge = '<span class="badge b-pkg">📦 باكج</span>';
     else if (item.managerStop && item.fixedRaw) badge = '<span class="badge b-am">🛑+💰</span>';
     else if (item.managerStop) badge = '<span class="badge b-am">🛑 مدير حساب</span>';
     else if (item.fixedRaw) badge = '<span class="badge b-am">💰 سعر ثابت</span>';
@@ -1002,8 +989,9 @@ function renderTable(){
     else if (item.isChange) badge = '<span class="badge b-short">تغيير</span>';
     else badge = '<span class="badge b-ok">ثابت</span>';
 
+    // ✅ إصلاح #3: عرض الكمية المتاحة للباكجات
     const odooDisplay = item.isPackage 
-      ? `<span style="font-size:10px;color:#1e40af;">📦 ${item.pkgComponents.length} مكون</span>`
+      ? `<span style="font-size:10px;color:#1e40af;">📦 ${item.pkgComponents.length} مكون | ${item.odooQty} متاح</span>`
       : (item.hasOdoo ? item.odooQty : '<span style="color:#ef4444;">—</span>');
 
     return `<tr>
@@ -1076,7 +1064,7 @@ function updateDynamicExport(){
   } else exportCount = S.filtered.length;
 
   const labels = {
-    'zeroing':' تصدير التصفير',
+    'zeroing':'🔴 تصدير التصفير',
     'restock':'🟢 تصدير الرجوع',
     'changes':'🟡 تصدير التغييرات',
     'new':'🆕 تصدير الجديدة',
@@ -1092,9 +1080,6 @@ function updateDynamicExport(){
   sec.classList.remove('hidden');
 }
 
-// ============================================================
-// EXPORT
-// ============================================================
 function protectBarcodeCols(ws, headers){
   if (!ws['!ref']) return;
   const range = XLSX.utils.decode_range(ws['!ref']);
@@ -1140,6 +1125,7 @@ function createSheetWithHeader(data, columns, sheetName) {
   return wb;
 }
 
+// ✅ إصلاح #4: استخدام packQty بدلاً من pieces
 function trendyolRow(i){
   return {
     'Barcode': i.barcode,
@@ -1149,7 +1135,7 @@ function trendyolRow(i){
     'Barcode odoo': i.odooBarcode,
     'VAT': i.vatMult,
     'السعر الثابت': i.fixedRaw || '',
-    'عدد القطع': (i.pieces !== undefined && i.pieces !== null && i.pieces !== 0) ? i.pieces : 1
+    'عدد القطع': i.packQty || 1
   };
 }
 
@@ -1248,7 +1234,6 @@ function exportDynamic(){
 }
 </script>
 
-<!-- زر بناء الباكج عائم -->
 <button onclick="openPkgModal()" style="position:fixed;bottom:30px;left:30px;background:#6366f1;color:#fff;border:none;border-radius:50%;width:60px;height:60px;font-size:24px;cursor:pointer;box-shadow:0 4px 12px rgba(99,102,241,0.4);z-index:100;" title="بناء باكج">📦</button>
 
 </body>
