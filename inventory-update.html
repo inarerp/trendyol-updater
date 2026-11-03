@@ -42,6 +42,7 @@
   .b-hold{background:#fce7f3;color:#9d174d}.b-am{background:#ede9fe;color:#5b21b6}
   .b-pkg{background:#dbeafe;color:#1e40af}
   .b-dist{background:#fef3c7;color:#92400e}
+  .b-excluded{background:#fce7f3;color:#9d174d}
   .table-wrap{max-height:500px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px}
   table{width:100%;border-collapse:collapse;font-size:12px}
   th{background:#f8fafc;padding:8px;text-align:right;border-bottom:2px solid #e2e8f0;position:sticky;top:0;font-weight:600;white-space:nowrap}
@@ -285,6 +286,14 @@ const S = {
   pkgItems: []
 };
 
+// ✅ قائمة البارکودات المستثناة من التوزيع (تأخذ المخزون الكامل)
+// لإضافة بارکود جديد: أضفه في السطر التالي بنفس الصيغة
+const EXCLUDED_FROM_DISTRIBUTION = [
+  '6970640620521'  // باركود المجات (مربوط بعدد كبير من عروض ترينديول)
+  // يمكنك إضافة المزيد هنا:
+  // 'barcode_here',
+];
+
 const OLD_STORAGE_KEYS = ['trendyol_saved_filters_v13','trendyol_saved_filters_v14','trendyol_saved_filters_v15','trendyol_saved_filters_v16','trendyol_saved_filters_v17'];
 const STORAGE_KEY = 'trendyol_saved_filters_final';
 
@@ -313,6 +322,9 @@ const toNum = v => { if(!v) return 0; const n = parseFloat(String(v).replace(/,/
 const norm = bc => { if(!bc) return ''; const s = String(bc).trim(); return s.replace(/^0+/,'') || s; };
 const splitSup = s => s ? s.split(/[,،]/).map(x=>x.trim()).filter(Boolean) : [];
 const dateStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+
+// ✅ تطبيع قائمة الاستثناء (للمقارنة الصحيحة)
+const EXCLUDED_NORMALIZED = new Set(EXCLUDED_FROM_DISTRIBUTION.map(bc => norm(bc)));
 
 function calcBaseExportable(item) {
   if (!item.hasOdoo) return 0;
@@ -458,9 +470,6 @@ function copyPkgString() {
   });
 }
 
-// ============================================================
-// ✅ دالة مساعدة لتصفير العروض
-// ============================================================
 function zeroOutItems(items, isDistributed = false) {
   items.forEach(item => {
     item.exportableStock = 0;
@@ -470,7 +479,7 @@ function zeroOutItems(items, isDistributed = false) {
 }
 
 // ============================================================
-// ✅ الخوارزمية النهائية: توزيع القطع بالتساوي ثم التحويل لحزم
+// ✅ دالة توزيع المخزون مع استثناء البارکودات المحددة
 // ============================================================
 function distributeStockFairly(warnings) {
   const groups = new Map();
@@ -483,8 +492,27 @@ function distributeStockFairly(warnings) {
 
   let distributedCount = 0;
   let totalDistributedListings = 0;
+  let excludedCount = 0;
 
   groups.forEach((items, key) => {
+    // ✅ استثناء البارکودات المحددة من التوزيع
+    if (EXCLUDED_NORMALIZED.has(key)) {
+      items.forEach(item => {
+        if (item.hasOdoo && !item.managerStop && !item.holdStock) {
+          // كل عرض يأخذ المخزون الكامل من أودو
+          item.exportableStock = calcBaseExportable(item);
+          item.distributedOdooQty = item.odooQty;
+        } else {
+          item.exportableStock = 0;
+          item.distributedOdooQty = 0;
+        }
+        item.isDistributed = false;
+        item.isExcludedFromDistribution = true;
+      });
+      excludedCount++;
+      return;
+    }
+
     if (items.length <= 1) return;
 
     zeroOutItems(items.filter(item => !item.hasOdoo || item.odooQty === 0), false);
@@ -515,7 +543,6 @@ function distributeStockFairly(warnings) {
       return;
     }
 
-    // ✅ الخوارزمية النهائية: توزيع القطع بالتساوي، ثم تحويل كل حصة إلى حزم
     const sharePerListing = Math.floor(availableStock / distributableItems.length);
     const remainder = availableStock - (sharePerListing * distributableItems.length);
 
@@ -534,7 +561,7 @@ function distributeStockFairly(warnings) {
     distributedCount++;
   });
 
-  return { distributedCount, totalDistributedListings };
+  return { distributedCount, totalDistributedListings, excludedCount };
 }
 
 function recalculateAfterDistribution() {
@@ -691,12 +718,10 @@ async function processAll(){
 
       if (managerStop) exportableStock = 0;
       
-      // ✅ إصلاح: استخدام (tyData.stock || 0) بدلاً من tyData.stock
       const isChange = stock !== exportableStock;
       const isProblem = isProblemStatus(status, statusDesc);
       const isIncomingStock = holdStock && stock > 0;
 
-      // ✅ إصلاح: استخدام dM.map.supplier بدلاً من supsupplier
       if (supplier) splitSup(supplier).forEach(s=>supSet.add(s));
 
       S.merged.push({
@@ -710,6 +735,7 @@ async function processAll(){
         amRaw, fixedRaw, fixedWholesale, managerStop,
         amConflict: managerStop && holdStock,
         isDistributed: false, distributedOdooQty: 0,
+        isExcludedFromDistribution: false,
         exportableStockBeforeDistribution: exportableStock
       });
     }
@@ -725,7 +751,6 @@ async function processAll(){
         const exportableStock = Math.max(0, baseExportable - sold);
         const vatRate = tyData.vatRate !== undefined ? toNum(tyData.vatRate) : 0;
         const vatMult = vatRate === 0 ? 1 : (1 + vatRate/100);
-        // ✅ إصلاح: استخدام (tyData.stock || 0)
         const isChange = (tyData.stock || 0) !== exportableStock;
         const isProblem = isProblemStatus(tyData.status, tyData.statusDesc);
 
@@ -741,19 +766,20 @@ async function processAll(){
           isNew: true, isChange, isProblem, holdStock: false, isIncomingStock: false,
           amRaw: '', fixedRaw: '', fixedWholesale: 0, managerStop: false, amConflict: false,
           isDistributed: false, distributedOdooQty: 0,
+          isExcludedFromDistribution: false,
           exportableStockBeforeDistribution: exportableStock
         });
       }
     }
 
-    const { distributedCount, totalDistributedListings } = distributeStockFairly(warnings);
+    const { distributedCount, totalDistributedListings, excludedCount } = distributeStockFairly(warnings);
     recalculateAfterDistribution();
 
     S.suppliers = Array.from(supSet).sort();
 
     const amItems = S.merged.filter(i => i.managerStop || i.fixedRaw);
     document.getElementById('read-summary').innerHTML =
-      `📖 ملخص: ترينديول ${trendyolMap.size.toLocaleString()} | أودو ${odooMap.size.toLocaleString()} | ماستر ${S.merged.length.toLocaleString()} | 📦 باكجات: ${pkgCount} | ⚖️ تم توزيع ${distributedCount} مجموعة (${totalDistributedListings} عرض) | ` +
+      `📖 ملخص: ترينديول ${trendyolMap.size.toLocaleString()} | أودو ${odooMap.size.toLocaleString()} | ماستر ${S.merged.length.toLocaleString()} | 📦 باكجات: ${pkgCount} | ⚖️ تم توزيع ${distributedCount} مجموعة (${totalDistributedListings} عرض) | 🚫 مستثنى من التوزيع: ${excludedCount} باركود | ` +
       (S.salesInfo ? `مبيعات: ${S.salesInfo.count} صنف${S.salesInfo.skipped ? ` (+${S.salesInfo.skipped} ملغي)` : ''}` : 'بدون مبيعات');
     document.getElementById('read-summary').classList.remove('hidden');
 
@@ -979,7 +1005,8 @@ function renderTable(){
   }
   tbody.innerHTML = visible.slice(0,limit).map(item => {
     let badge;
-    if (item.isPackage) badge = '<span class="badge b-pkg">📦 باكج</span>';
+    if (item.isExcludedFromDistribution) badge = '<span class="badge b-excluded">🚫 مستثنى</span>';
+    else if (item.isPackage) badge = '<span class="badge b-pkg">📦 باكج</span>';
     else if (item.managerStop && item.fixedRaw) badge = '<span class="badge b-am">🛑+💰</span>';
     else if (item.managerStop) badge = '<span class="badge b-am">🛑 مدير حساب</span>';
     else if (item.fixedRaw) badge = '<span class="badge b-am">💰 سعر ثابت</span>';
@@ -1189,7 +1216,8 @@ function exportMaster(){
     'Is Package': i.isPackage ? 'Yes' : 'No',
     'Is New': i.isNew ? 'Yes' : 'No',
     'Has Change': i.isChange ? 'Yes' : 'No',
-    'Is Distributed': i.isDistributed ? 'Yes' : 'No'
+    'Is Distributed': i.isDistributed ? 'Yes' : 'No',
+    'Excluded From Distribution': i.isExcludedFromDistribution ? 'Yes' : 'No'
   }));
   exportMasterSheet(data, 'Master', `Master_Updated_${dateStr()}.xlsx`);
 }
