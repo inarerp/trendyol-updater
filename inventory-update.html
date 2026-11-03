@@ -287,11 +287,8 @@ const S = {
 };
 
 // ✅ قائمة البارکودات المستثناة من التوزيع (تأخذ المخزون الكامل)
-// لإضافة بارکود جديد: أضفه في السطر التالي بنفس الصيغة
 const EXCLUDED_FROM_DISTRIBUTION = [
-  '6970640620521'  // باركود المجات (مربوط بعدد كبير من عروض ترينديول)
-  // يمكنك إضافة المزيد هنا:
-  // 'barcode_here',
+  '6970640620521'  // باركود المجات
 ];
 
 const OLD_STORAGE_KEYS = ['trendyol_saved_filters_v13','trendyol_saved_filters_v14','trendyol_saved_filters_v15','trendyol_saved_filters_v16','trendyol_saved_filters_v17'];
@@ -323,7 +320,6 @@ const norm = bc => { if(!bc) return ''; const s = String(bc).trim(); return s.re
 const splitSup = s => s ? s.split(/[,،]/).map(x=>x.trim()).filter(Boolean) : [];
 const dateStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
-// ✅ تطبيع قائمة الاستثناء (للمقارنة الصحيحة)
 const EXCLUDED_NORMALIZED = new Set(EXCLUDED_FROM_DISTRIBUTION.map(bc => norm(bc)));
 
 function calcBaseExportable(item) {
@@ -497,11 +493,15 @@ function distributeStockFairly(warnings) {
   groups.forEach((items, key) => {
     // ✅ استثناء البارکودات المحددة من التوزيع
     if (EXCLUDED_NORMALIZED.has(key)) {
+      // ✅ حساب إجمالي المبيعات لكل العروض المرتبطة بنفس باركود أودو
+      const totalSold = items.reduce((sum, item) => sum + (item.sold || 0), 0);
+      
       items.forEach(item => {
         if (item.hasOdoo && !item.managerStop && !item.holdStock) {
-          // كل عرض يأخذ المخزون الكامل من أودو
-          item.exportableStock = calcBaseExportable(item);
-          item.distributedOdooQty = item.odooQty;
+          const baseExportable = calcBaseExportable(item);
+          // ✅ خصم إجمالي المبيعات (وليس مبيعات العرض الفردية)
+          item.exportableStock = Math.max(0, baseExportable - totalSold);
+          item.distributedOdooQty = baseExportable;
         } else {
           item.exportableStock = 0;
           item.distributedOdooQty = 0;
@@ -569,11 +569,11 @@ function recalculateAfterDistribution() {
     item.isChange = item.stock !== item.exportableStock;
     if (item.isDistributed) {
       item.affectedBySales = item.sold > 0 && !item.managerStop && item.exportableStock < item.exportableStockBeforeDistribution;
-      delete item.exportableStockBeforeDistribution;
     } else {
       const baseBeforeSales = calcBaseExportable(item);
       item.affectedBySales = item.sold > 0 && !item.managerStop && item.exportableStock < baseBeforeSales;
     }
+    delete item.exportableStockBeforeDistribution;
   });
 }
 
