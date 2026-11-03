@@ -147,7 +147,8 @@
     <div class="filter-row" style="margin-top:10px;">
       <label>فلاتر سريعة:</label>
       <div class="quick-filters">
-        <button class="btn btn-outline btn-sm" onclick="quickFilter('zeroing',this)">🔴 تصفير</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFilter('zeroing',this)">🔴 تصفير (غير موجود)</button>
+        <button class="btn btn-outline btn-sm" onclick="quickFilter('zeroing-all',this)" style="border-color:#dc2626;color:#dc2626">🔴 تصفير شامل</button>
         <button class="btn btn-outline btn-sm" onclick="quickFilter('restock',this)">🟢 رجوع</button>
         <button class="btn btn-outline btn-sm" onclick="quickFilter('changes',this)">🟡 تغييرات</button>
         <button class="btn btn-outline btn-sm" onclick="quickFilter('new',this)">🆕 جديدة</button>
@@ -286,9 +287,8 @@ const S = {
   pkgItems: []
 };
 
-// ✅ قائمة البارکودات المستثناة من التوزيع (تأخذ المخزون الكامل)
 const EXCLUDED_FROM_DISTRIBUTION = [
-  '6970640620521'  // باركود المجات
+  '6970640620521'
 ];
 
 const OLD_STORAGE_KEYS = ['trendyol_saved_filters_v13','trendyol_saved_filters_v14','trendyol_saved_filters_v15','trendyol_saved_filters_v16','trendyol_saved_filters_v17'];
@@ -360,6 +360,11 @@ function isProblemStatus(status, desc){
 function isHoldStock(val){
   const v = clean(val).toLowerCase();
   return v === 'true' || v === 'yes' || v === 'نعم' || v === '1';
+}
+
+// ✅ [إصلاح متوسط] دالة مساعدة لشرط التصدير
+function canExportToTrendyol(item) {
+  return item.isChange && (!item.holdStock || item.managerStop);
 }
 
 const SPEC = {
@@ -474,9 +479,6 @@ function zeroOutItems(items, isDistributed = false) {
   });
 }
 
-// ============================================================
-// ✅ دالة توزيع المخزون مع استثناء البارکودات المحددة
-// ============================================================
 function distributeStockFairly(warnings) {
   const groups = new Map();
   S.merged.forEach(item => {
@@ -491,15 +493,11 @@ function distributeStockFairly(warnings) {
   let excludedCount = 0;
 
   groups.forEach((items, key) => {
-    // ✅ استثناء البارکودات المحددة من التوزيع
     if (EXCLUDED_NORMALIZED.has(key)) {
-      // ✅ حساب إجمالي المبيعات لكل العروض المرتبطة بنفس باركود أودو
       const totalSold = items.reduce((sum, item) => sum + (item.sold || 0), 0);
-      
       items.forEach(item => {
         if (item.hasOdoo && !item.managerStop && !item.holdStock) {
           const baseExportable = calcBaseExportable(item);
-          // ✅ خصم إجمالي المبيعات (وليس مبيعات العرض الفردية)
           item.exportableStock = Math.max(0, baseExportable - totalSold);
           item.distributedOdooQty = baseExportable;
         } else {
@@ -817,6 +815,7 @@ function setNewFilter(mode, btn){
   btn.classList.add('active');
   applyFilters();
 }
+
 function quickFilter(type, btn){
   if (S.quickFilterActive === type){
     S.quickFilterActive = null;
@@ -829,6 +828,7 @@ function quickFilter(type, btn){
   if (btn) btn.classList.add('btn-active');
   switch(type){
     case 'zeroing': S.tyFilter='gt0'; S.odooFilter='not-in-odoo'; S.newFilter='all'; break;
+    case 'zeroing-all': S.tyFilter='all'; S.odooFilter='all'; S.newFilter='all'; break;
     case 'restock': S.tyFilter='zero'; S.odooFilter='in-odoo'; S.newFilter='all'; break;
     case 'changes': S.tyFilter='all'; S.odooFilter='in-odoo'; S.newFilter='all'; break;
     case 'new': S.tyFilter='all'; S.odooFilter='all'; S.newFilter='new-only'; break;
@@ -839,6 +839,7 @@ function quickFilter(type, btn){
   }
   updateFilterButtons(); applyFilters();
 }
+
 function updateFilterButtons(){
   document.querySelectorAll('#odoo-btns button').forEach(b=>b.classList.remove('active'));
   const oi = {'all':0,'in-odoo':1,'not-in-odoo':2,'range':3}[S.odooFilter];
@@ -883,6 +884,12 @@ function applyFilters(){
     if (S.newFilter==='new-only' && !item.isNew) return false;
     if (S.newFilter==='old-only' && item.isNew) return false;
     if (S.quickFilterActive==='changes' && !item.isChange) return false;
+    
+    if (S.quickFilterActive==='zeroing-all') {
+      const willBeZeroed = item.stock > 0 && item.exportableStock === 0 && (!item.holdStock || item.managerStop);
+      if (!willBeZeroed) return false;
+    }
+    
     if (S.quickFilterActive==='hold' && !item.holdStock) return false;
     if (S.quickFilterActive==='am' && !(item.managerStop || item.fixedRaw)) return false;
     if (S.quickFilterActive==='pkg' && !item.isPackage) return false;
@@ -1074,7 +1081,8 @@ function updateStats(){
 
   document.getElementById('c-master').textContent = S.merged.length.toLocaleString();
   document.getElementById('c-new').textContent = S.filtered.filter(i=>i.isNew).length.toLocaleString();
-  document.getElementById('c-ty').textContent = S.filtered.filter(i=>i.isChange && (!i.holdStock || i.managerStop)).length.toLocaleString();
+  // ✅ [إصلاح متوسط] استخدام canExportToTrendyol
+  document.getElementById('c-ty').textContent = S.filtered.filter(canExportToTrendyol).length.toLocaleString();
 }
 
 function updateDynamicExport(){
@@ -1087,7 +1095,10 @@ function updateDynamicExport(){
   if (['zeroing','restock','changes'].includes(S.quickFilterActive)){
     exHold = S.filtered.filter(i=>i.holdStock && !i.managerStop).length;
     exNoChange = S.filtered.filter(i=>!i.isChange && !(i.holdStock && !i.managerStop)).length;
-    exportCount = S.filtered.filter(i=>i.isChange && (!i.holdStock || i.managerStop)).length;
+    // ✅ [إصلاح متوسط] استخدام canExportToTrendyol
+    exportCount = S.filtered.filter(canExportToTrendyol).length;
+  } else if (S.quickFilterActive === 'zeroing-all') {
+    exportCount = S.filtered.length;
   } else if (S.quickFilterActive === 'am'){
     exportCount = S.filtered.filter(i=>i.managerStop || i.fixedRaw).length;
   } else if (S.quickFilterActive === 'pkg'){
@@ -1095,7 +1106,8 @@ function updateDynamicExport(){
   } else exportCount = S.filtered.length;
 
   const labels = {
-    'zeroing':'🔴 تصدير التصفير',
+    'zeroing':'🔴 تصدير التصفير (غير موجود)',
+    'zeroing-all':'🔴 تصدير التصفير الشامل',
     'restock':'🟢 تصدير الرجوع',
     'changes':'🟡 تصدير التغييرات',
     'new':'🆕 تصدير الجديدة',
@@ -1237,7 +1249,8 @@ function exportNew(){
 }
 
 function exportTrendyol(){
-  const data = S.filtered.filter(i=>i.isChange && (!i.holdStock || i.managerStop)).map(mapToTrendyolRow);
+  // ✅ [إصلاح متوسط] استخدام canExportToTrendyol
+  const data = S.filtered.filter(canExportToTrendyol).map(mapToTrendyolRow);
   if (!data.length) return alert('لا توجد تغييرات');
   const columns = ['Barcode', 'Original (List) Price', 'Trendyol Sale Price (VAT included)', 'Product Stock Quantity', 'Barcode odoo', 'VAT', 'السعر الثابت', 'سعر الجملة الثابت', 'عدد القطع'];
   const wb = createSheetWithHeader(data, columns, 'Price_And_Stock_Update');
@@ -1250,9 +1263,15 @@ function exportDynamic(){
   let data, columns, name;
   
   if (['zeroing','restock','changes'].includes(S.quickFilterActive)){
-    data = visible.filter(i=>i.isChange && (!i.holdStock || i.managerStop)).map(mapToTrendyolRow);
+    // ✅ [إصلاح متوسط] استخدام canExportToTrendyol
+    data = visible.filter(canExportToTrendyol).map(mapToTrendyolRow);
     columns = ['Barcode', 'Original (List) Price', 'Trendyol Sale Price (VAT included)', 'Product Stock Quantity', 'Barcode odoo', 'VAT', 'السعر الثابت', 'سعر الجملة الثابت', 'عدد القطع'];
     name = `Trendyol_${S.quickFilterActive}_${dateStr()}.xlsx`;
+  } else if (S.quickFilterActive === 'zeroing-all') {
+    // ✅ [إصلاح حرج] استخدام mapToTrendyolRow بدلاً من trendyolRow
+    data = visible.map(mapToTrendyolRow);
+    columns = ['Barcode', 'Original (List) Price', 'Trendyol Sale Price (VAT included)', 'Product Stock Quantity', 'Barcode odoo', 'VAT', 'السعر الثابت', 'سعر الجملة الثابت', 'عدد القطع'];
+    name = `Trendyol_Zeroing_All_${dateStr()}.xlsx`;
   } else if (S.quickFilterActive === 'pkg'){
     data = visible.filter(i=>i.isPackage).map(trendyolPkgRow);
     columns = ['Barcode', 'Original (List) Price', 'Trendyol Sale Price (VAT included)', 'Product Stock Quantity', 'Barcode odoo', 'VAT', 'السعر الثابت', 'سعر الجملة الثابت', 'عدد القطع'];
