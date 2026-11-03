@@ -362,7 +362,6 @@ function isHoldStock(val){
   return v === 'true' || v === 'yes' || v === 'نعم' || v === '1';
 }
 
-// ✅ [إصلاح متوسط] دالة مساعدة لشرط التصدير
 function canExportToTrendyol(item) {
   return item.isChange && (!item.holdStock || item.managerStop);
 }
@@ -829,7 +828,8 @@ function quickFilter(type, btn){
   switch(type){
     case 'zeroing': S.tyFilter='gt0'; S.odooFilter='not-in-odoo'; S.newFilter='all'; break;
     case 'zeroing-all': S.tyFilter='all'; S.odooFilter='all'; S.newFilter='all'; break;
-    case 'restock': S.tyFilter='zero'; S.odooFilter='in-odoo'; S.newFilter='all'; break;
+    // ✅ [إصلاح] تغيير فلاتر restock من 'zero'/'in-odoo' إلى 'all'/'all'
+    case 'restock': S.tyFilter='all'; S.odooFilter='all'; S.newFilter='all'; break;
     case 'changes': S.tyFilter='all'; S.odooFilter='in-odoo'; S.newFilter='all'; break;
     case 'new': S.tyFilter='all'; S.odooFilter='all'; S.newFilter='new-only'; break;
     case 'new-no-odoo': S.tyFilter='all'; S.odooFilter='not-in-odoo'; S.newFilter='new-only'; break;
@@ -888,6 +888,14 @@ function applyFilters(){
     if (S.quickFilterActive==='zeroing-all') {
       const willBeZeroed = item.stock > 0 && item.exportableStock === 0 && (!item.holdStock || item.managerStop);
       if (!willBeZeroed) return false;
+    }
+    
+    // ✅ [إصلاح] إضافة شرط خاص لفلتر "رجوع"
+    if (S.quickFilterActive==='restock') {
+      const shouldRestock = item.stock === 0 && 
+                            item.exportableStock > 0 && 
+                            (!item.holdStock || item.managerStop);
+      if (!shouldRestock) return false;
     }
     
     if (S.quickFilterActive==='hold' && !item.holdStock) return false;
@@ -1081,7 +1089,6 @@ function updateStats(){
 
   document.getElementById('c-master').textContent = S.merged.length.toLocaleString();
   document.getElementById('c-new').textContent = S.filtered.filter(i=>i.isNew).length.toLocaleString();
-  // ✅ [إصلاح متوسط] استخدام canExportToTrendyol
   document.getElementById('c-ty').textContent = S.filtered.filter(canExportToTrendyol).length.toLocaleString();
 }
 
@@ -1095,7 +1102,6 @@ function updateDynamicExport(){
   if (['zeroing','restock','changes'].includes(S.quickFilterActive)){
     exHold = S.filtered.filter(i=>i.holdStock && !i.managerStop).length;
     exNoChange = S.filtered.filter(i=>!i.isChange && !(i.holdStock && !i.managerStop)).length;
-    // ✅ [إصلاح متوسط] استخدام canExportToTrendyol
     exportCount = S.filtered.filter(canExportToTrendyol).length;
   } else if (S.quickFilterActive === 'zeroing-all') {
     exportCount = S.filtered.length;
@@ -1249,7 +1255,6 @@ function exportNew(){
 }
 
 function exportTrendyol(){
-  // ✅ [إصلاح متوسط] استخدام canExportToTrendyol
   const data = S.filtered.filter(canExportToTrendyol).map(mapToTrendyolRow);
   if (!data.length) return alert('لا توجد تغييرات');
   const columns = ['Barcode', 'Original (List) Price', 'Trendyol Sale Price (VAT included)', 'Product Stock Quantity', 'Barcode odoo', 'VAT', 'السعر الثابت', 'سعر الجملة الثابت', 'عدد القطع'];
@@ -1263,12 +1268,10 @@ function exportDynamic(){
   let data, columns, name;
   
   if (['zeroing','restock','changes'].includes(S.quickFilterActive)){
-    // ✅ [إصلاح متوسط] استخدام canExportToTrendyol
     data = visible.filter(canExportToTrendyol).map(mapToTrendyolRow);
     columns = ['Barcode', 'Original (List) Price', 'Trendyol Sale Price (VAT included)', 'Product Stock Quantity', 'Barcode odoo', 'VAT', 'السعر الثابت', 'سعر الجملة الثابت', 'عدد القطع'];
     name = `Trendyol_${S.quickFilterActive}_${dateStr()}.xlsx`;
   } else if (S.quickFilterActive === 'zeroing-all') {
-    // ✅ [إصلاح حرج] استخدام mapToTrendyolRow بدلاً من trendyolRow
     data = visible.map(mapToTrendyolRow);
     columns = ['Barcode', 'Original (List) Price', 'Trendyol Sale Price (VAT included)', 'Product Stock Quantity', 'Barcode odoo', 'VAT', 'السعر الثابت', 'سعر الجملة الثابت', 'عدد القطع'];
     name = `Trendyol_Zeroing_All_${dateStr()}.xlsx`;
