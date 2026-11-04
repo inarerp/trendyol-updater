@@ -737,11 +737,25 @@ async function processAll(){
       });
     }
 
+    // ✅ [إصلاح حرج] المنتجات الجديدة تستخدم نفس قاعدة الأولويات + إصلاح مشكلة hasOdoo
     for (const [nBc, tyData] of trendyolMap.entries()){
       if (!getBoth(masterMap, nBc)) {
-        const odoo = getBoth(odooMap, nBc);
-        const hasOdoo = odoo !== undefined;
-        const odooQty = hasOdoo ? odoo.qty : 0;
+        // استخدام نفس قاعدة الأولويات: Supplier Stock Code → Barcode odoo → الباركود الأصلي
+        let odooBarcodeRaw = tyData.ssc || tyData.odooCol || nBc;
+        
+        // ✅ [إصلاح] استخدام let بدلاً من const لتحديث odoo في حالة الـ fallback
+        let odoo = getBoth(odooMap, odooBarcodeRaw);
+        if (odoo === undefined) {
+          // Fallback: ابحث بالباركود الأصلي
+          const odooFallback = getBoth(odooMap, nBc);
+          if (odooFallback !== undefined) {
+            odooBarcodeRaw = nBc;
+            odoo = odooFallback;  // ✅ تحديث odoo أيضاً
+          }
+        }
+        
+        const hasOdoo = odoo !== undefined;  // ✅ الآن يعتمد على النتيجة النهائية
+        const odooQty = hasOdoo ? odoo.qty : 0;  // ✅ الآن صحيح
         const packQty = 1;
         const baseExportable = hasOdoo ? Math.floor(odooQty / packQty) : 0;
         const sold = salesMap.size ? (salesMap.get(nBc) || 0) : 0;
@@ -756,7 +770,7 @@ async function processAll(){
           originalPrice: tyData.originalPrice, salePrice: tyData.salePrice,
           stock: tyData.stock || 0, vatMult,
           status: tyData.status, statusDesc: tyData.statusDesc,
-          odooBarcode: nBc, isPackage: false, pkgComponents: [],
+          odooBarcode: odooBarcodeRaw, isPackage: false, pkgComponents: [],
           supplier: '', pieces: 0, packQty: 1,
           odooQty, hasOdoo, exportableStock,
           sold, affectedBySales: false,
@@ -828,7 +842,6 @@ function quickFilter(type, btn){
   switch(type){
     case 'zeroing': S.tyFilter='gt0'; S.odooFilter='not-in-odoo'; S.newFilter='all'; break;
     case 'zeroing-all': S.tyFilter='all'; S.odooFilter='all'; S.newFilter='all'; break;
-    // ✅ [إصلاح] تغيير فلاتر restock من 'zero'/'in-odoo' إلى 'all'/'all'
     case 'restock': S.tyFilter='all'; S.odooFilter='all'; S.newFilter='all'; break;
     case 'changes': S.tyFilter='all'; S.odooFilter='in-odoo'; S.newFilter='all'; break;
     case 'new': S.tyFilter='all'; S.odooFilter='all'; S.newFilter='new-only'; break;
@@ -890,7 +903,6 @@ function applyFilters(){
       if (!willBeZeroed) return false;
     }
     
-    // ✅ [إصلاح] إضافة شرط خاص لفلتر "رجوع"
     if (S.quickFilterActive==='restock') {
       const shouldRestock = item.stock === 0 && 
                             item.exportableStock > 0 && 
