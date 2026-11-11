@@ -86,8 +86,8 @@
 
 <script>
 let files = { master:null, supplier:null };
-let updatedMasterData = [];
-let newProductsData = [];
+let masterOut = [];      // صفوف الماستر كمصفوفات (يحافظ على ترتيب وأسماء الأعمدة كما هي)
+let newProductsOut = []; // صفوف المنتجات الجديدة كمصفوفات
 
 function pickFile(input, type) {
   files[type] = input.files[0];
@@ -103,13 +103,21 @@ async function readExcel(file) {
     const reader = new FileReader();
     reader.onload = e => {
       try {
-        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+        // ✅ raw:true يحافظ على النص في CSV (الأصفار البادئة في الباركود)
+        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', raw:true});
         resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''}));
       } catch (err) { reject(err); }
     };
     reader.onerror = () => reject(new Error('فشل قراءة الملف'));
     reader.readAsArrayBuffer(file);
   });
+}
+
+// ✅ تطبيع الباركود: نص بدون مسافات وبدون أصفار بادئة (نفس منطق باقي الأدوات)
+function normBc(v) {
+  if (v === null || v === undefined) return '';
+  const s = String(v).trim();
+  return s.replace(/^0+/, '') || s;
 }
 
 function findCol(headers, names) {
@@ -122,6 +130,15 @@ function findCol(headers, names) {
     if (idx !== -1) return idx;
   }
   return -1;
+}
+
+// ✅ اكتشاف صف العناوين (ملفات ترينديول فيها صفوف فوق العناوين)
+function findHeaderRow(rows, names) {
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const cells = (rows[i] || []).map(c => String(c).toLowerCase().trim());
+    if (names.some(n => cells.includes(n.toLowerCase()))) return i;
+  }
+  return 0;
 }
 
 function showError(msg) {
@@ -139,98 +156,116 @@ async function processSync() {
   try {
     const masterRaw = await readExcel(files.master);
     const supplierRaw = await readExcel(files.supplier);
-    
-    const mHeaders = masterRaw[0];
-    const sHeaders = supplierRaw[0];
-    
+
+    const mHR = findHeaderRow(masterRaw, ['Barcode', 'باركود']);
+    const sHR = findHeaderRow(supplierRaw, ['Barcode', 'باركود']);
+    const mHeaders = (masterRaw[mHR] || []).slice();
+    const sHeaders = (supplierRaw[sHR] || []).slice();
+
+    // المطابقة الدقيقة أولاً، فلا يُختار "Barcode odoo" بدل "Barcode"
     const mColBar = findCol(mHeaders, ['Barcode', 'باركود']);
-    const mColSup = findCol(mHeaders, ['المورد', 'Supplier', 'Vendor']);
-    
+    let mColSup = findCol(mHeaders, ['المورد', 'Supplier', 'Vendor']);
     const sColBar = findCol(sHeaders, ['Barcode', 'باركود']);
-    const sColSup = findCol(sHeaders, ['المورد', 'Supplier', 'Vendor', 'Supplier Name']);
-    
+    const sColSup = findCol(sHeaders, ['المورد', 'Supplier Name', 'Supplier', 'Vendor']);
+
     if(mColBar === -1 || sColBar === -1) {
       showError('لم يتم العثور على عمود Barcode في أحد الملفات!');
       return;
     }
 
-    // Build Supplier Map
-    let supplierMap = new Map();
-    for(let i=1; i<supplierRaw.length; i++) {
-      const bc = String(supplierRaw[i][sColBar] || '').trim();
+    const manualSupplierName = document.getElementById('supplier-name-input').value.trim();
+
+    // ✅ الباركود المكرر في ملف المورد بأسماء موردين مختلفة: تُجمع الأسماء بدل أخذ آخر صف
+    const supplierMap = new Map();
+    for(let i = sHR + 1; i < supplierRaw.length; i++) {
+      const row = supplierRaw[i] || [];
+      const bc = normBc(row[sColBar]);
       if(!bc) continue;
-      const supName = sColSup !== -1 ? String(supplierRaw[i][sColSup] || '') : '';
-      supplierMap.set(bc, supName);
+      let supName = sColSup !== -1 ? String(row[sColSup] ?? '').trim() : '';
+      if (!supName) supName = manualSupplierName;
+      if (!supplierMap.has(bc)) supplierMap.set(bc, new Set());
+      if (supName) supplierMap.get(bc).add(supName);
     }
 
-    const manualSupplierName = document.getElementById('supplier-name-input').value.trim();
+    // لو الماستر بدون عمود مورد يُضاف في آخره
+    const addedSupCol = mColSup === -1;
+    if (addedSupCol) { mColSup = mHeaders.length; mHeaders.push('المورد'); }
+
     let updatedCount = 0;
-    updatedMasterData = [];
-    newProductsData = [];
+    masterOut = [];
+    // الصفوف فوق العناوين تُنسخ كما هي
+    for (let i = 0; i < mHR; i++) masterOut.push((masterRaw[i] || []).slice());
+    masterOut.push(mHeaders);
 
-    // 1. Process Master (Update existing)
-    for(let i=1; i<masterRaw.length; i++) {
-      const rowObj = {};
-      mHeaders.forEach((h, idx) => rowObj[h] = masterRaw[i][idx]);
-      
-      const bc = String(masterRaw[i][mColBar] || '').trim();
-      if(!bc) { updatedMasterData.push(rowObj); continue; }
-
-      if(supplierMap.has(bc)) { // ✅ إصلاح: استخدام has() بدلاً من hasOwnProperty()
-        let newSup = supplierMap.get(bc);
-        if(!newSup && manualSupplierName) newSup = manualSupplierName;
-        
-        if(newSup) {
-          const keyToUpdate = mColSup !== -1 ? mHeaders[mColSup] : 'المورد';
-          rowObj[keyToUpdate] = newSup;
-          updatedCount++;
+    const masterBarcodes = new Set();
+    for(let i = mHR + 1; i < masterRaw.length; i++) {
+      const row = (masterRaw[i] || []).slice();
+      while (row.length < mHeaders.length) row.push('');
+      const bc = normBc(row[mColBar]);
+      if (bc) {
+        masterBarcodes.add(bc);
+        const names = supplierMap.get(bc);
+        if (names && names.size) {
+          const newSup = Array.from(names).join('، ');
+          if (String(row[mColSup] ?? '').trim() !== newSup) {
+            row[mColSup] = newSup;
+            updatedCount++;
+          }
         }
       }
-      updatedMasterData.push(rowObj);
+      masterOut.push(row);
     }
 
-    // 2. Find New Products (In Supplier but not in Master)
-    let masterBarcodes = new Set();
-    for(let i=1; i<masterRaw.length; i++) {
-      const bc = String(masterRaw[i][mColBar] || '').trim();
-      if(bc) masterBarcodes.add(bc);
-    }
-
-    // ✅ إصلاح: نسخ جميع أعمدة المورد للمنتجات الجديدة
-    for(let i=1; i<supplierRaw.length; i++) {
-      const bc = String(supplierRaw[i][sColBar] || '').trim();
-      if(!bc) continue;
-      
-      if(!masterBarcodes.has(bc)) {
-        const newObj = {};
-        sHeaders.forEach((h, idx) => newObj[h] = supplierRaw[i][idx]);
-        
-        let supName = sColSup !== -1 ? String(supplierRaw[i][sColSup] || '') : '';
-        if(!supName && manualSupplierName) supName = manualSupplierName;
-        newObj['المورد'] = supName;
-        newObj['ملاحظة'] = 'منتج جديد - غير موجود في الماستر';
-        newProductsData.push(newObj);
-      }
+    // المنتجات الجديدة: كل أعمدة المورد + المورد + ملاحظة
+    newProductsOut = [];
+    const newHeaders = sHeaders.slice();
+    const supIdx = sColSup !== -1 ? sColSup : newHeaders.push('المورد') - 1;
+    const noteIdx = newHeaders.push('ملاحظة') - 1;
+    newProductsOut.push(newHeaders);
+    const seenNew = new Set();
+    for(let i = sHR + 1; i < supplierRaw.length; i++) {
+      const row = (supplierRaw[i] || []).slice();
+      const bc = normBc(row[sColBar]);
+      if(!bc || masterBarcodes.has(bc) || seenNew.has(bc)) continue;
+      seenNew.add(bc);
+      while (row.length < newHeaders.length) row.push('');
+      if (!String(row[supIdx] ?? '').trim() && manualSupplierName) row[supIdx] = manualSupplierName;
+      row[noteIdx] = 'منتج جديد - غير موجود في الماستر';
+      newProductsOut.push(row);
     }
 
     document.getElementById('stat-updated').textContent = updatedCount;
-    document.getElementById('stat-new').textContent = newProductsData.length;
+    document.getElementById('stat-new').textContent = newProductsOut.length - 1;
     document.getElementById('results-card').classList.remove('hidden');
 
   } catch(e) {
     showError('خطأ في المعالجة: ' + e.message);
   } finally {
-    document.getElementById('btn-process').textContent = ' بدء المزامنة';
+    document.getElementById('btn-process').textContent = '🔄 بدء المزامنة';
     document.getElementById('btn-process').disabled = false;
   }
 }
 
+// ✅ أعمدة الباركود تُكتب نصاً حتى لا يحولها Excel لصيغة علمية أو يحذف الأصفار
+function sheetFromRows(rows, headerRowIdx) {
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const headers = rows[headerRowIdx] || [];
+  const bcCols = headers.map((h, i) => /barcode|باركود/i.test(String(h)) ? i : -1).filter(i => i >= 0);
+  for (let r = headerRowIdx + 1; r < rows.length; r++) {
+    for (const c of bcCols) {
+      const ref = XLSX.utils.encode_cell({ r, c });
+      if (ws[ref] && ws[ref].v !== '') { ws[ref].t = 's'; ws[ref].v = String(ws[ref].v); delete ws[ref].w; }
+    }
+  }
+  return ws;
+}
+
 function downloadResult() {
+  if (!masterOut.length) return;
   const wb = XLSX.utils.book_new();
-  const ws1 = XLSX.utils.json_to_sheet(updatedMasterData);
-  XLSX.utils.book_append_sheet(wb, ws1, 'الماستر المحدث');
-  const ws2 = XLSX.utils.json_to_sheet(newProductsData);
-  XLSX.utils.book_append_sheet(wb, ws2, 'غير موجود في الماستر');
+  const mHR = masterOut.findIndex(r => (r || []).some(c => /^(barcode|باركود)$/i.test(String(c).trim())));
+  XLSX.utils.book_append_sheet(wb, sheetFromRows(masterOut, Math.max(0, mHR)), 'الماستر المحدث');
+  XLSX.utils.book_append_sheet(wb, sheetFromRows(newProductsOut, 0), 'غير موجود في الماستر');
   XLSX.writeFile(wb, `Supplier_Sync_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 </script>

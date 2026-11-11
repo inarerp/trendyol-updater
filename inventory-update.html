@@ -160,7 +160,7 @@
     </div>
     <div class="filter-row">
       <label>بحث عام:</label>
-      <input type="text" id="flt-search" placeholder="باركود، اسم، براند، مورد..." oninput="applyFilters()">
+      <input type="text" id="flt-search" placeholder="باركود، اسم، براند، مورد..." oninput="debouncedFilter()">
     </div>
     <div class="filter-row">
       <label>استبعاد:</label>
@@ -299,7 +299,7 @@ function migrateFilters() {
     const oldSaved = localStorage.getItem(oldKey);
     if (oldSaved) {
       try {
-        const currentSaved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        const currentSaved = readSaved();
         const oldData = JSON.parse(oldSaved);
         const merged = [...currentSaved];
         for (const old of oldData) {
@@ -318,31 +318,30 @@ const toInt = v => { if(!v) return 0; const n = parseInt(String(v).replace(/,/g,
 const toNum = v => { if(!v) return 0; const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n)?0:n; };
 const norm = bc => { if(!bc) return ''; const s = String(bc).trim(); return s.replace(/^0+/,'') || s; };
 const splitSup = s => s ? s.split(/[,،]/).map(x=>x.trim()).filter(Boolean) : [];
+// ✅ تهريب النصوص قبل وضعها في innerHTML
+const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const dateStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
 const EXCLUDED_NORMALIZED = new Set(EXCLUDED_FROM_DISTRIBUTION.map(bc => norm(bc)));
 
-function calcBaseExportable(item) {
-  if (!item.hasOdoo) return 0;
-  return item.isPackage ? item.odooQty : Math.floor(item.odooQty / item.packQty);
-}
-
 function isPackage(value) {
   if (!value) return false;
   const s = String(value).trim();
-  return s.includes(':') && s.includes(',');
+  // ✅ إصلاح: باكج من مكوّن واحد (مثل 123:6) لم يكن يُكتشف لأن الشرط كان يتطلب فاصلة
+  return s.includes(':');
 }
 
 function parsePackage(value) {
   const components = [];
   String(value).split(',').forEach(part => {
     const [bc, qty] = part.split(':');
-    if (bc && qty) components.push({ barcode: bc.trim(), qty: parseInt(qty.trim()) || 1 });
+    if (bc && bc.trim()) components.push({ barcode: bc.trim(), qty: Math.max(1, parseInt(String(qty||'').trim()) || 1) });
   });
   return components;
 }
 
-const AM_NEGATIVES = ['لا','no','-'];
+// ✅ إضافة قيم سلبية شائعة حتى لا يتوقف الإدراج بالخطأ
+const AM_NEGATIVES = ['لا','no','-','0','false','none','n/a','لا يوجد'];
 function isAmStop(val){
   const v = clean(val).toLowerCase();
   return v !== '' && !AM_NEGATIVES.includes(v);
@@ -362,14 +361,15 @@ function isHoldStock(val){
   return v === 'true' || v === 'yes' || v === 'نعم' || v === '1';
 }
 
+// ✅ [H3] التصدير فقط لإدراج موجود في الماستر وفي ترينديول معاً
 function canExportToTrendyol(item) {
-  return item.isChange && (!item.holdStock || item.managerStop);
+  return item.inMaster && item.onTrendyol && item.isChange && (!item.holdStock || item.managerStop);
 }
 
 const SPEC = {
-  trendyol: { barcode:{a:['barcode'],r:1}, ssc:{a:['supplier stock code']}, odoo:{a:['barcode odoo','باركود أودو']}, name:{a:['product name']}, brand:{a:['brand']}, price:{a:['original (list) price']}, salePrice:{a:['trendyol sale price (including vat)','sale price']}, stock:{a:['stock']}, vat:{a:['vat rate']}, status:{a:['status']}, statusDesc:{a:['status description']} },
+  trendyol: { barcode:{a:['barcode'],r:1}, ssc:{a:['supplier stock code']}, odoo:{a:['barcode odoo','باركود أودو']}, name:{a:['product name']}, brand:{a:['brand']}, price:{a:['original (list) price']}, salePrice:{a:['trendyol sale price (including vat)','trendyol sale price (vat included)','sale price']}, stock:{a:['stock']}, vat:{a:['vat rate']}, status:{a:['status']}, statusDesc:{a:['status description']} },
   odoo: { barcode:{a:['باركود','barcode','default_code','internal reference'],r:1}, qty:{a:['الكمية في اليد','quantity on hand','quantity','qty_available'],r:1}, name:{a:['اسم العرض','display_name','product name','name']}, cost:{a:['التكلفة','cost','standard_price']}, lpp:{a:['last purchase price','سعر اخر شراء','last_purchase_price']} },
-  master: { barcode:{a:['barcode','trendyol barcode'],r:1}, odoo:{a:['barcode odoo','باركود أودو','odoo barcode']}, supplier:{a:['المورد','supplier']}, pieces:{a:['عدد القطع','pack qty','pack quantity']}, hold:{a:['hold stock','hold','هولد']}, am:{a:['مدير الحساب','account manager']}, fixedPrice:{a:['السعر الثابت','fixed price']}, fixedWholesale:{a:['سعر الجملة الثابت','fixed wholesale','fixed wholesale price']} },
+  master: { barcode:{a:['barcode','trendyol barcode'],r:1}, odoo:{a:['barcode odoo','باركود أودو','odoo barcode']}, supplier:{a:['المورد','supplier']}, pieces:{a:['عدد القطع','pack qty','pack quantity']}, hold:{a:['hold stock','hold','هولد']}, am:{a:['مدير الحساب','account manager']}, fixedPrice:{a:['السعر الثابت','fixed price']}, fixedWholesale:{a:['سعر الجملة الثابت','fixed wholesale','fixed wholesale price']}, vat:{a:['vat']} },
   sales: { barcode:{a:['barcode'],r:1}, qty:{a:['quantity','qty'],r:1}, status:{a:['order status']} }
 };
 
@@ -389,7 +389,8 @@ function readRows(file){
     const r = new FileReader();
     r.onload = e => {
       try {
-        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array', raw:false });
+        // ✅ raw:true يحافظ على النص في ملفات CSV (الأصفار البادئة في الباركود)
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array', raw:true });
         res(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:'' }));
       } catch(err){ rej(err); }
     };
@@ -425,18 +426,6 @@ function guessHeaders(rows){
   return best.slice(0,10).join(' | ');
 }
 
-function putBoth(map, key, val){
-  if (!map.has(key)) map.set(key, val);
-  const n = norm(key);
-  if (n && n !== key && !map.has(n)) map.set(n, val);
-}
-function getBoth(map, key){
-  if (!key) return undefined;
-  if (map.has(key)) return map.get(key);
-  const n = norm(key);
-  return map.has(n) ? map.get(n) : undefined;
-}
-
 function openPkgModal() { document.getElementById('pkg-modal').classList.remove('hidden'); document.getElementById('pkg-barcode').focus(); }
 function closePkgModal() { document.getElementById('pkg-modal').classList.add('hidden'); }
 function addPkgItem() {
@@ -459,7 +448,7 @@ function renderPkgList() {
     list.innerHTML = '<div style="padding:12px;text-align:center;color:#9ca3af;font-size:12px;">لا توجد مكونات</div>';
     str.textContent = '(فارغ)'; return;
   }
-  list.innerHTML = S.pkgItems.map((item, idx) => `<div class="pkg-item"><span><strong>${item.barcode}</strong> × ${item.qty}</span><button class="btn btn-danger btn-sm" onclick="removePkgItem(${idx})">🗑️</button></div>`).join('');
+  list.innerHTML = S.pkgItems.map((item, idx) => `<div class="pkg-item"><span><strong>${esc(item.barcode)}</strong> × ${item.qty}</span><button class="btn btn-danger btn-sm" onclick="removePkgItem(${idx})">🗑️</button></div>`).join('');
   str.textContent = S.pkgItems.map(i => `${i.barcode}:${i.qty}`).join(',');
 }
 function copyPkgString() {
@@ -470,332 +459,285 @@ function copyPkgString() {
   });
 }
 
-function zeroOutItems(items, isDistributed = false) {
-  items.forEach(item => {
-    item.exportableStock = 0;
-    item.distributedOdooQty = 0;
-    item.isDistributed = isDistributed;
-  });
+// ===================== حساب المخزون (موحّد) =====================
+// كل إدراج له مرجع أودو واحد ومكوّنات: الصنف العادي = مكوّن واحد بكمية = عدد القطع،
+// والباكج = مكوّناته بكمياتها. كل الحسابات تتم بالقطع على مستوى باركود أودو.
+
+const isBlank = v => v === '' || v === null || v === undefined || String(v).trim() === '';
+
+function refComps(ref, packQty) {
+  if (!ref) return [];
+  if (isPackage(ref)) return parsePackage(ref).map(c => ({ bc: norm(c.barcode), qty: c.qty }));
+  return [{ bc: norm(ref), qty: packQty || 1 }];
 }
 
-function distributeStockFairly(warnings) {
-  const groups = new Map();
-  S.merged.forEach(item => {
-    const key = norm(item.odooBarcode);
-    if (!key) return;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(item);
+// ✅ [C1 + M3] محلل مرجع واحد للحالتين (ماستر / ترينديول فقط):
+// يجرب المراجع بالترتيب ويرجع أول مرجع موجود كاملاً في أودو (يدعم الباكج)
+function resolveRef(odooMap, candidates, packQty) {
+  for (const ref of candidates) {
+    if (!ref) continue;
+    const comps = refComps(ref, packQty);
+    if (comps.length && comps.every(c => odooMap.has(c.bc))) return { ref, comps, found: true };
+  }
+  const ref = candidates.find(Boolean) || '';
+  return { ref, comps: refComps(ref, packQty), found: false };
+}
+
+// ✅ [C2] الفات: ترينديول ← عمود VAT في الماستر ← 15% افتراضياً. الصفر الصريح = معفى
+const DEFAULT_VAT = 15;
+function resolveVatPct(trCell, masterCell) {
+  if (!isBlank(trCell)) return { pct: toNum(trCell), src: 'trendyol' };
+  if (!isBlank(masterCell)) {
+    const n = toNum(masterCell);
+    const pct = n <= 0 ? 0 : (n < 2 ? Math.round((n - 1) * 10000) / 100 : n); // 1.15 أو 15
+    return { pct, src: 'master' };
+  }
+  return { pct: DEFAULT_VAT, src: 'default' };
+}
+
+// ✅ [C4] الإدراج النشط = يُرفع لترينديول ويأخذ نصيباً من المخزون
+const isListed = i => i.inMaster && i.onTrendyol;
+const isActive = i => i.hasOdoo && isListed(i) && !i.managerStop && !i.holdStock;
+
+function computeStock(items, odooMap) {
+  // 1) مبيعات اليوم بالقطع لكل باركود أودو (كل الإدراجات، حتى الموقوفة والهولد، لأنها طلبات فعلية)
+  const soldPcs = new Map();
+  items.forEach(i => {
+    if (!i.hasOdoo || !i.sold) return;
+    i.comps.forEach(c => soldPcs.set(c.bc, (soldPcs.get(c.bc) || 0) + i.sold * c.qty));
   });
+  const net = bc => Math.max(0, (odooMap.get(bc)?.qty || 0) - (soldPcs.get(bc) || 0));
 
-  let distributedCount = 0;
-  let totalDistributedListings = 0;
-  let excludedCount = 0;
-
-  groups.forEach((items, key) => {
-    if (EXCLUDED_NORMALIZED.has(key)) {
-      const totalSold = items.reduce((sum, item) => sum + (item.sold || 0), 0);
-      items.forEach(item => {
-        if (item.hasOdoo && !item.managerStop && !item.holdStock) {
-          const baseExportable = calcBaseExportable(item);
-          item.exportableStock = Math.max(0, baseExportable - totalSold);
-          item.distributedOdooQty = baseExportable;
-        } else {
-          item.exportableStock = 0;
-          item.distributedOdooQty = 0;
-        }
-        item.isDistributed = false;
-        item.isExcludedFromDistribution = true;
-      });
-      excludedCount++;
-      return;
-    }
-
-    if (items.length <= 1) return;
-
-    zeroOutItems(items.filter(item => !item.hasOdoo || item.odooQty === 0), false);
-    const validItems = items.filter(item => item.hasOdoo && item.odooQty > 0);
-    
-    if (validItems.length <= 1) {
-      zeroOutItems(validItems.filter(item => item.managerStop || item.holdStock), false);
-      validItems.filter(item => !item.managerStop && !item.holdStock).forEach(item => {
-        item.distributedOdooQty = item.odooQty;
-        item.isDistributed = false;
-      });
-      return;
-    }
-
-    const totalOdooQty = validItems[0].odooQty;
-    if (!validItems.every(item => item.odooQty === totalOdooQty)) {
-      warnings.push(`⚠️ عروض مختلفة لنفس Barcode odoo (${key}) لها كميات مختلفة. تم استخدام: ${totalOdooQty}`);
-    }
-
-    const totalSold = items.reduce((sum, item) => sum + item.sold, 0);
-    const availableStock = Math.max(0, totalOdooQty - totalSold);
-    const distributableItems = validItems.filter(item => !item.managerStop && !item.holdStock);
-    
-    if (distributableItems.length === 0 || availableStock === 0) {
-      zeroOutItems(distributableItems, true);
-      totalDistributedListings += distributableItems.length;
-      zeroOutItems(validItems.filter(item => item.managerStop || item.holdStock), false);
-      return;
-    }
-
-    const sharePerListing = Math.floor(availableStock / distributableItems.length);
-    const remainder = availableStock - (sharePerListing * distributableItems.length);
-
-    distributableItems.forEach((item, idx) => {
-      const packQty = item.packQty || 1;
-      const itemPieces = sharePerListing + (idx < remainder ? 1 : 0);
-      const bundleCount = Math.floor(itemPieces / packQty);
-      
-      item.exportableStock = bundleCount;
-      item.distributedOdooQty = bundleCount * packQty;
-      item.isDistributed = true;
-      totalDistributedListings++;
+  // 2) الإدراجات النشطة التي تستهلك كل باركود
+  const consumers = new Map();
+  items.forEach(i => {
+    if (!isActive(i)) return;
+    i.comps.forEach(c => {
+      if (!consumers.has(c.bc)) consumers.set(c.bc, []);
+      consumers.get(c.bc).push({ item: i, u: c.qty });
     });
-
-    zeroOutItems(validItems.filter(item => item.managerStop || item.holdStock), false);
-    distributedCount++;
   });
 
-  return { distributedCount, totalDistributedListings, excludedCount };
-}
-
-function recalculateAfterDistribution() {
-  S.merged.forEach(item => {
-    item.isChange = item.stock !== item.exportableStock;
-    if (item.isDistributed) {
-      item.affectedBySales = item.sold > 0 && !item.managerStop && item.exportableStock < item.exportableStockBeforeDistribution;
-    } else {
-      const baseBeforeSales = calcBaseExportable(item);
-      item.affectedBySales = item.sold > 0 && !item.managerStop && item.exportableStock < baseBeforeSales;
+  // 3) توزيع قطع كل باركود بالتساوي بين الإدراجات، والباقي بالتناوب (11 على عرضين = 6 و 5)
+  const alloc = new Map();
+  const give = (i, bc, p) => {
+    if (!alloc.has(i)) alloc.set(i, new Map());
+    alloc.get(i).set(bc, (alloc.get(i).get(bc) || 0) + p);
+  };
+  let sharedBarcodes = 0;
+  consumers.forEach((list, bc) => {
+    const avail = net(bc);
+    if (EXCLUDED_NORMALIZED.has(bc) || list.length === 1) {
+      list.forEach(({ item }) => give(item, bc, avail));
+      return;
     }
-    delete item.exportableStockBeforeDistribution;
+    sharedBarcodes++;
+    const share = Math.floor(avail / list.length);
+    let rem = avail;
+    list.forEach(({ item, u }) => { const p = Math.floor(share / u) * u; give(item, bc, p); rem -= p; });
+    let progress = true;
+    while (rem > 0 && progress) {
+      progress = false;
+      for (const { item, u } of list) {
+        if (rem >= u) { give(item, bc, u); rem -= u; progress = true; }
+      }
+    }
+    list.forEach(({ item }) => { item.isDistributed = true; });
   });
+
+  // 4) الكمية القابلة للتصدير لكل إدراج بوحدته (قطعة / باكت / باكج)
+  items.forEach(i => {
+    i.isExcludedFromDistribution = i.comps.some(c => EXCLUDED_NORMALIZED.has(c.bc));
+    if (!i.hasOdoo || i.managerStop) {
+      i.exportableStock = 0;
+      i.distributedOdooQty = 0;
+    } else {
+      // غير النشط (هولد / غير مرفوع) يعرض المتاح كمعلومة فقط ولا يُصدَّر
+      const pcs = c => isActive(i) ? (alloc.get(i)?.get(c.bc) || 0) : net(c.bc);
+      i.exportableStock = Math.max(0, Math.min(...i.comps.map(c => Math.floor(pcs(c) / c.qty))));
+      i.distributedOdooQty = i.isPackage ? i.exportableStock : i.exportableStock * i.packQty;
+    }
+    i.isChange = i.stock !== i.exportableStock;
+    i.affectedBySales = i.sold > 0 && i.hasOdoo && !i.managerStop;
+  });
+  return { sharedBarcodes };
 }
 
 async function processAll(){
+  // ✅ [M4] قفل أثناء المعالجة
+  const btn = document.getElementById('btn-go');
+  if (btn.dataset.busy) return;
+  btn.dataset.busy = '1'; btn.disabled = true;
   const warnings = [];
   try {
     const odooRows = await readRows(S.files.odoo);
     const dO = detect(odooRows, SPEC.odoo);
     if (!dO) return alert('ملف أودو: مش لاقي عمود الباركود أو الكمية.\nالأعمدة: ' + guessHeaders(odooRows));
-    
-    const odooMap = new Map();
+    if (dO.map.lpp === undefined) warnings.push('ملف أودو بدون عمود Last Purchase Price.');
+
+    // الباركود المكرر في أودو تُجمع كمياته
+    const odooMap = new Map(); let odooDup = 0;
     for (const r of odooRows.slice(dO.headerRow+1)){
       const bc = clean(r[dO.map.barcode]); if (!bc) continue;
+      const k = norm(bc);
       const lpp = dO.map.lpp !== undefined ? toNum(r[dO.map.lpp]) : 0;
       const cost = dO.map.cost !== undefined ? toNum(r[dO.map.cost]) : 0;
-      putBoth(odooMap, bc, { 
-        qty: toNum(r[dO.map.qty]), 
-        name: dO.map.name!==undefined ? clean(r[dO.map.name]) : '',
-        wholesalePrice: (lpp > 0) ? lpp : cost,
-        lpp: lpp, cost: cost
-      });
+      const name = dO.map.name!==undefined ? clean(r[dO.map.name]) : '';
+      const ex = odooMap.get(k);
+      if (ex) {
+        odooDup++;
+        ex.qty += toNum(r[dO.map.qty]);
+        if (!ex.lpp && lpp > 0) ex.lpp = lpp;
+        if (!ex.cost && cost > 0) ex.cost = cost;
+        if (!ex.name) ex.name = name;
+        ex.wholesalePrice = ex.lpp > 0 ? ex.lpp : ex.cost;
+      } else {
+        odooMap.set(k, { qty: toNum(r[dO.map.qty]), name, wholesalePrice: (lpp > 0) ? lpp : cost, lpp, cost });
+      }
     }
+    if (odooDup) warnings.push(`ملف أودو: ${odooDup} صف بباركود مكرر — تم جمع كمياتها.`);
 
-    const masterMap = new Map();
     const mRows = await readRows(S.files.master);
     const dM = detect(mRows, SPEC.master);
     if (!dM) return alert('الماستر: مش لاقي عمود Barcode.\nالأعمدة: ' + guessHeaders(mRows));
-    for (const r of mRows.slice(dM.headerRow+1)){
-      const bc = clean(r[dM.map.barcode]); if (!bc) continue;
-      const pieces = dM.map.pieces!==undefined ? toInt(r[dM.map.pieces]) : 0;
-      const fixedWholesale = dM.map.fixedWholesale!==undefined ? toNum(r[dM.map.fixedWholesale]) : 0;
-      putBoth(masterMap, bc, {
-        odoo: dM.map.odoo!==undefined ? clean(r[dM.map.odoo]) : '',
-        supplier: dM.map.supplier!==undefined ? clean(r[dM.map.supplier]) : '',
-        pieces: pieces > 0 ? pieces : 0,
-        hold: dM.map.hold!==undefined ? isHoldStock(r[dM.map.hold]) : false,
-        amRaw: dM.map.am!==undefined ? clean(r[dM.map.am]) : '',
-        fixedRaw: dM.map.fixedPrice!==undefined ? clean(r[dM.map.fixedPrice]) : '',
-        fixedWholesale: fixedWholesale
-      });
-    }
 
+    // ✅ [C3] المبيعات: الكمية الفارغة = 1، والصفر (حتى لو رقم) أو السالب لا يُخصم
     const salesMap = new Map(); S.salesInfo = null;
     if (S.files.sales){
       const sRows = await readRows(S.files.sales);
       const dS = detect(sRows, SPEC.sales);
       if (!dS) warnings.push('ملف المبيعات: مش لاقي Barcode أو Quantity — هيتم تجاهله.');
       else {
-        let skipped = 0;
+        let cancelled = 0, zeroQty = 0;
         for (const r of sRows.slice(dS.headerRow+1)){
           const bc = clean(r[dS.map.barcode]); if (!bc) continue;
           const st = dS.map.status!==undefined ? clean(r[dS.map.status]).toLowerCase() : '';
-          if (st.includes('cancel')) { skipped++; continue; }
-          const q = toInt(r[dS.map.qty]) || 1;
+          if (st.includes('cancel')) { cancelled++; continue; }
+          const qCell = r[dS.map.qty];
+          const q = isBlank(qCell) ? 1 : toInt(qCell);
+          if (q <= 0) { zeroQty++; continue; }
           const k = norm(bc);
           salesMap.set(k, (salesMap.get(k)||0) + q);
         }
-        S.salesInfo = { count: salesMap.size, skipped };
+        S.salesInfo = { count: salesMap.size, cancelled, zeroQty };
       }
     }
 
+    // ✅ [H1] فشل قراءة ملف ترينديول يوقف المعالجة بدل المتابعة بصمت
     const tRows = await readRows(S.files.trendyol);
     const dT = detect(tRows, SPEC.trendyol);
+    if (!dT) return alert('ملف ترينديول: مش لاقي عمود Barcode.\nالأعمدة: ' + guessHeaders(tRows));
+    if (dT.map.stock === undefined) warnings.push('ملف ترينديول بدون عمود Stock — كل الكميات الحالية اعتُبرت 0.');
     const trendyolMap = new Map();
-    if (dT) {
-      for (const r of tRows.slice(dT.headerRow+1)){
-        const bc = clean(r[dT.map.barcode]); if (!bc) continue;
-        trendyolMap.set(norm(bc), {
-          name: dT.map.name!==undefined ? clean(r[dT.map.name]) : '',
-          brand: dT.map.brand!==undefined ? clean(r[dT.map.brand]) : '',
-          originalPrice: dT.map.price!==undefined ? toNum(r[dT.map.price]) : 0,
-          salePrice: dT.map.salePrice!==undefined ? toNum(r[dT.map.salePrice]) : 0,
-          stock: dT.map.stock!==undefined ? toInt(r[dT.map.stock]) : 0,
-          vatRate: dT.map.vat!==undefined ? toNum(r[dT.map.vat]) : 0,
-          status: dT.map.status!==undefined ? clean(r[dT.map.status]) : '',
-          statusDesc: dT.map.statusDesc!==undefined ? clean(r[dT.map.statusDesc]) : '',
-          ssc: dT.map.ssc!==undefined ? clean(r[dT.map.ssc]) : '',
-          odooCol: dT.map.odoo!==undefined ? clean(r[dT.map.odoo]) : ''
-        });
-      }
+    for (const r of tRows.slice(dT.headerRow+1)){
+      const bc = clean(r[dT.map.barcode]); if (!bc) continue;
+      trendyolMap.set(norm(bc), {
+        raw: bc,
+        name: dT.map.name!==undefined ? clean(r[dT.map.name]) : '',
+        brand: dT.map.brand!==undefined ? clean(r[dT.map.brand]) : '',
+        originalPrice: dT.map.price!==undefined ? toNum(r[dT.map.price]) : 0,
+        salePrice: dT.map.salePrice!==undefined ? toNum(r[dT.map.salePrice]) : 0,
+        stock: dT.map.stock!==undefined ? toInt(r[dT.map.stock]) : 0,
+        vatCell: dT.map.vat!==undefined ? r[dT.map.vat] : '',
+        status: dT.map.status!==undefined ? clean(r[dT.map.status]) : '',
+        statusDesc: dT.map.statusDesc!==undefined ? clean(r[dT.map.statusDesc]) : '',
+        ssc: dT.map.ssc!==undefined ? clean(r[dT.map.ssc]) : '',
+        odooCol: dT.map.odoo!==undefined ? clean(r[dT.map.odoo]) : ''
+      });
     }
 
     S.merged = [];
     const supSet = new Set();
-    let pkgCount = 0;
+    const masterSet = new Set();
+    let pkgCount = 0, masterDup = 0, refFallback = 0, vatDefaulted = 0;
 
+    // بناء إدراج واحد (نفس المنطق للماستر ولإدراجات ترينديول غير الموجودة في الماستر)
+    function buildItem({ bc, tyData, inMaster, masterOdoo, pieces, holdStock, amRaw, fixedRaw, fixedWholesale, supplier, masterVat }) {
+      const onTrendyol = !!tyData;
+      const ty = tyData || {};
+      const nBc = norm(bc);
+      let packQty = pieces > 0 ? pieces : 1;
+      const res = resolveRef(odooMap, [masterOdoo, ty.ssc, ty.odooCol, bc], packQty);
+      if (masterOdoo && res.found && res.ref !== masterOdoo) refFallback++;
+      const isPkg = isPackage(res.ref);
+      if (isPkg) { pkgCount++; packQty = res.comps.reduce((a, c) => a + c.qty, 0) || 1; }
+      const hasOdoo = res.found;
+      let odooQty = 0;
+      if (hasOdoo) {
+        odooQty = isPkg
+          ? Math.min(...res.comps.map(c => { const q = odooMap.get(c.bc).qty; return q > 0 ? Math.floor(q / c.qty) : 0; }))
+          : odooMap.get(res.comps[0].bc).qty;
+      }
+      const vat = resolveVatPct(ty.vatCell, masterVat);
+      if (vat.src === 'default' && inMaster && onTrendyol) vatDefaulted++;
+      const managerStop = isAmStop(amRaw);
+      const stock = ty.stock || 0;
+      if (supplier) splitSup(supplier).forEach(s => supSet.add(s));
+      return {
+        barcode: inMaster ? bc : (ty.raw || bc),
+        name: ty.name || '', brand: ty.brand || '',
+        originalPrice: ty.originalPrice || 0, salePrice: ty.salePrice || 0,
+        stock, vatMult: 1 + vat.pct / 100,
+        status: ty.status || '', statusDesc: ty.statusDesc || '',
+        odooBarcode: res.ref, isPackage: isPkg,
+        pkgComponents: isPkg ? parsePackage(res.ref) : [], comps: res.comps,
+        supplier, pieces, packQty,
+        odooQty, hasOdoo, exportableStock: 0,
+        sold: salesMap.size ? (salesMap.get(nBc) || 0) : 0, affectedBySales: false,
+        // ✅ [H3] علمان منفصلان بدل isNew بمعنيين
+        inMaster, onTrendyol, isNew: !(inMaster && onTrendyol),
+        isChange: false, isProblem: isProblemStatus(ty.status, ty.statusDesc),
+        holdStock, isIncomingStock: holdStock && stock > 0,
+        amRaw, fixedRaw, fixedWholesale, managerStop,
+        amConflict: managerStop && holdStock,
+        isDistributed: false, distributedOdooQty: 0, isExcludedFromDistribution: false
+      };
+    }
+
+    const col = (r, key) => dM.map[key] !== undefined ? r[dM.map[key]] : '';
     for (const r of mRows.slice(dM.headerRow+1)){
       const bc = clean(r[dM.map.barcode]); if (!bc) continue;
       const nBc = norm(bc);
-      const tyData = trendyolMap.get(nBc) || {};
-      const isNew = Object.keys(tyData).length === 0;
-
-      const name = tyData.name || '';
-      const brand = tyData.brand || '';
-      const originalPrice = tyData.originalPrice || 0;
-      const salePrice = tyData.salePrice || 0;
-      const stock = tyData.stock || 0;
-
-      const vatRate = tyData.vatRate !== undefined ? toNum(tyData.vatRate) : 0;
-      const vatMult = vatRate === 0 ? 1 : (1 + vatRate/100);
-
-      const status = tyData.status || '';
-      const statusDesc = tyData.statusDesc || '';
-
-      const pieces = dM.map.pieces!==undefined ? toInt(r[dM.map.pieces]) : 0;
-      const holdStock = dM.map.hold!==undefined ? isHoldStock(r[dM.map.hold]) : false;
-      const amRaw = dM.map.am!==undefined ? clean(r[dM.map.am]) : '';
-      const fixedRaw = dM.map.fixedPrice!==undefined ? clean(r[dM.map.fixedPrice]) : '';
-      const fixedWholesale = dM.map.fixedWholesale!==undefined ? toNum(r[dM.map.fixedWholesale]) : 0;
-      const managerStop = isAmStop(amRaw);
-
-      let odooBarcodeRaw = (dM.map.odoo!==undefined ? clean(r[dM.map.odoo]) : '') || tyData.ssc || tyData.odooCol || bc;
-      const supplier = dM.map.supplier!==undefined ? clean(r[dM.map.supplier]) : '';
-
-      let isPkg = false, pkgComponents = [], odooQty = 0, hasOdoo = false, exportableStock = 0;
-      let packQty = pieces > 0 ? pieces : 1;
-      const sold = salesMap.size ? (salesMap.get(nBc) || 0) : 0;
-
-      if (isPackage(odooBarcodeRaw)) {
-        isPkg = true; pkgCount++; pkgComponents = parsePackage(odooBarcodeRaw);
-        let minStockRatio = Infinity, totalPackQty = 0, allFound = true;
-        for (const comp of pkgComponents) {
-          const compData = getBoth(odooMap, comp.barcode);
-          if (!compData) { allFound = false; continue; }
-          if (compData.qty > 0) {
-            const ratio = Math.floor(compData.qty / comp.qty);
-            if (ratio < minStockRatio) minStockRatio = ratio;
-          } else minStockRatio = 0;
-          totalPackQty += comp.qty;
-        }
-        if (allFound && minStockRatio !== Infinity) { hasOdoo = true; odooQty = minStockRatio; exportableStock = Math.max(0, minStockRatio - sold); }
-        else { hasOdoo = false; exportableStock = 0; }
-        packQty = totalPackQty > 0 ? totalPackQty : 1;
-      } else {
-        let odoo = getBoth(odooMap, odooBarcodeRaw);
-        if (odoo === undefined) odoo = getBoth(odooMap, bc);
-        hasOdoo = odoo !== undefined;
-        odooQty = hasOdoo ? odoo.qty : 0;
-        const baseExportable = hasOdoo ? Math.floor(odooQty / packQty) : 0;
-        exportableStock = Math.max(0, baseExportable - sold);
-      }
-
-      if (managerStop) exportableStock = 0;
-      
-      const isChange = stock !== exportableStock;
-      const isProblem = isProblemStatus(status, statusDesc);
-      const isIncomingStock = holdStock && stock > 0;
-
-      if (supplier) splitSup(supplier).forEach(s=>supSet.add(s));
-
-      S.merged.push({
-        barcode: bc, name, brand, originalPrice, salePrice, stock, vatMult,
-        status, statusDesc,
-        odooBarcode: odooBarcodeRaw, isPackage: isPkg, pkgComponents: pkgComponents,
-        supplier, pieces, packQty,
-        odooQty, hasOdoo, exportableStock,
-        sold, affectedBySales: false,
-        isNew, isChange, isProblem, holdStock, isIncomingStock,
-        amRaw, fixedRaw, fixedWholesale, managerStop,
-        amConflict: managerStop && holdStock,
-        isDistributed: false, distributedOdooQty: 0,
-        isExcludedFromDistribution: false,
-        exportableStockBeforeDistribution: exportableStock
-      });
+      if (masterSet.has(nBc)) { masterDup++; continue; }
+      masterSet.add(nBc);
+      S.merged.push(buildItem({
+        bc, tyData: trendyolMap.get(nBc), inMaster: true,
+        masterOdoo: clean(col(r, 'odoo')),
+        pieces: Math.max(0, toInt(col(r, 'pieces'))),
+        holdStock: isHoldStock(col(r, 'hold')),
+        amRaw: clean(col(r, 'am')),
+        fixedRaw: clean(col(r, 'fixedPrice')),
+        fixedWholesale: toNum(col(r, 'fixedWholesale')),
+        supplier: clean(col(r, 'supplier')),
+        masterVat: col(r, 'vat')
+      }));
     }
-
-    // ✅ [إصلاح حرج] المنتجات الجديدة تستخدم نفس قاعدة الأولويات + إصلاح مشكلة hasOdoo
     for (const [nBc, tyData] of trendyolMap.entries()){
-      if (!getBoth(masterMap, nBc)) {
-        // استخدام نفس قاعدة الأولويات: Supplier Stock Code → Barcode odoo → الباركود الأصلي
-        let odooBarcodeRaw = tyData.ssc || tyData.odooCol || nBc;
-        
-        // ✅ [إصلاح] استخدام let بدلاً من const لتحديث odoo في حالة الـ fallback
-        let odoo = getBoth(odooMap, odooBarcodeRaw);
-        if (odoo === undefined) {
-          // Fallback: ابحث بالباركود الأصلي
-          const odooFallback = getBoth(odooMap, nBc);
-          if (odooFallback !== undefined) {
-            odooBarcodeRaw = nBc;
-            odoo = odooFallback;  // ✅ تحديث odoo أيضاً
-          }
-        }
-        
-        const hasOdoo = odoo !== undefined;  // ✅ الآن يعتمد على النتيجة النهائية
-        const odooQty = hasOdoo ? odoo.qty : 0;  // ✅ الآن صحيح
-        const packQty = 1;
-        const baseExportable = hasOdoo ? Math.floor(odooQty / packQty) : 0;
-        const sold = salesMap.size ? (salesMap.get(nBc) || 0) : 0;
-        const exportableStock = Math.max(0, baseExportable - sold);
-        const vatRate = tyData.vatRate !== undefined ? toNum(tyData.vatRate) : 0;
-        const vatMult = vatRate === 0 ? 1 : (1 + vatRate/100);
-        const isChange = (tyData.stock || 0) !== exportableStock;
-        const isProblem = isProblemStatus(tyData.status, tyData.statusDesc);
-
-        S.merged.push({
-          barcode: nBc, name: tyData.name, brand: tyData.brand,
-          originalPrice: tyData.originalPrice, salePrice: tyData.salePrice,
-          stock: tyData.stock || 0, vatMult,
-          status: tyData.status, statusDesc: tyData.statusDesc,
-          odooBarcode: odooBarcodeRaw, isPackage: false, pkgComponents: [],
-          supplier: '', pieces: 0, packQty: 1,
-          odooQty, hasOdoo, exportableStock,
-          sold, affectedBySales: false,
-          isNew: true, isChange, isProblem, holdStock: false, isIncomingStock: false,
-          amRaw: '', fixedRaw: '', fixedWholesale: 0, managerStop: false, amConflict: false,
-          isDistributed: false, distributedOdooQty: 0,
-          isExcludedFromDistribution: false,
-          exportableStockBeforeDistribution: exportableStock
-        });
-      }
+      if (masterSet.has(nBc)) continue;
+      S.merged.push(buildItem({
+        bc: tyData.raw, tyData, inMaster: false, masterOdoo: '', pieces: 0,
+        holdStock: false, amRaw: '', fixedRaw: '', fixedWholesale: 0, supplier: '', masterVat: ''
+      }));
     }
 
-    const { distributedCount, totalDistributedListings, excludedCount } = distributeStockFairly(warnings);
-    recalculateAfterDistribution();
+    if (masterDup) warnings.push(`الماستر: ${masterDup} صف بباركود مكرر — تم أخذ أول صف فقط.`);
+    if (refFallback) warnings.push(`${refFallback} صنف: Barcode odoo في الماستر غير موجود في أودو — استُخدم مرجع بديل (راجع عمود Barcode odoo في الماستر المحدث).`);
+    if (vatDefaulted) warnings.push(`${vatDefaulted} صنف بدون فات في ترينديول والماستر — تم افتراض 15%.`);
 
+    const { sharedBarcodes } = computeStock(S.merged, odooMap);
     S.suppliers = Array.from(supSet).sort();
 
+    const inMasterCount = S.merged.filter(i => i.inMaster).length;
+    const notInMaster = S.merged.length - inMasterCount;
     const amItems = S.merged.filter(i => i.managerStop || i.fixedRaw);
+    const si = S.salesInfo;
     document.getElementById('read-summary').innerHTML =
-      `📖 ملخص: ترينديول ${trendyolMap.size.toLocaleString()} | أودو ${odooMap.size.toLocaleString()} | ماستر ${S.merged.length.toLocaleString()} | 📦 باكجات: ${pkgCount} | ⚖️ تم توزيع ${distributedCount} مجموعة (${totalDistributedListings} عرض) | 🚫 مستثنى من التوزيع: ${excludedCount} باركود | ` +
-      (S.salesInfo ? `مبيعات: ${S.salesInfo.count} صنف${S.salesInfo.skipped ? ` (+${S.salesInfo.skipped} ملغي)` : ''}` : 'بدون مبيعات');
+      `📖 ملخص: ترينديول ${trendyolMap.size.toLocaleString()} | أودو ${odooMap.size.toLocaleString()} | ماستر ${inMasterCount.toLocaleString()}${notInMaster ? ` (+${notInMaster} في ترينديول فقط)` : ''} | 📦 باكجات: ${pkgCount} | ⚖️ باركودات موزعة بين أكثر من عرض: ${sharedBarcodes} | ` +
+      (si ? `مبيعات: ${si.count} صنف${si.cancelled ? ` (+${si.cancelled} ملغي)` : ''}${si.zeroQty ? ` (+${si.zeroQty} بكمية صفر)` : ''}` : 'بدون مبيعات');
     document.getElementById('read-summary').classList.remove('hidden');
 
     const w = document.getElementById('warnings');
-    if (warnings.length){ w.innerHTML = '⚠️ ' + warnings.join('<br>⚠️ '); w.classList.remove('hidden'); }
+    if (warnings.length){ w.innerHTML = '⚠️ ' + warnings.map(esc).join('<br>⚠️ '); w.classList.remove('hidden'); }
     else w.classList.add('hidden');
 
     renderSuppliers();
@@ -804,6 +746,7 @@ async function processAll(){
     applyFilters();
 
   } catch(err){ alert('خطأ: ' + err.message); console.error(err); }
+  finally { delete btn.dataset.busy; checkReady(); }
 }
 
 function setOdooFilter(mode, btn){
@@ -865,6 +808,10 @@ function updateFilterButtons(){
   if (ni!==undefined) document.querySelectorAll('#new-btns button')[ni].classList.add('active');
 }
 
+// ✅ [L8] تأخير الفلترة أثناء الكتابة في البحث
+let filterTimer = null;
+function debouncedFilter(){ clearTimeout(filterTimer); filterTimer = setTimeout(applyFilters, 200); }
+
 function applyFilters(){
   const search = document.getElementById('flt-search').value.toLowerCase().trim();
   const excludeProblems = document.getElementById('flt-exclude-problems').checked;
@@ -899,12 +846,12 @@ function applyFilters(){
     if (S.quickFilterActive==='changes' && !item.isChange) return false;
     
     if (S.quickFilterActive==='zeroing-all') {
-      const willBeZeroed = item.stock > 0 && item.exportableStock === 0 && (!item.holdStock || item.managerStop);
+      const willBeZeroed = isListed(item) && item.stock > 0 && item.exportableStock === 0 && (!item.holdStock || item.managerStop);
       if (!willBeZeroed) return false;
     }
     
     if (S.quickFilterActive==='restock') {
-      const shouldRestock = item.stock === 0 && 
+      const shouldRestock = isListed(item) && item.stock === 0 && 
                             item.exportableStock > 0 && 
                             (!item.holdStock || item.managerStop);
       if (!shouldRestock) return false;
@@ -931,10 +878,16 @@ function resetAll(){
   applyFilters();
 }
 
+// ✅ [M5] قراءة آمنة للفلاتر المحفوظة
+function readSaved(){
+  try { const v = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); return Array.isArray(v) ? v : []; }
+  catch { return []; }
+}
+
 function saveFilterGroup(){
   const name = prompt('اسم الفلتر:');
   if (!name || !name.trim()) return;
-  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  const saved = readSaved();
   const excludedSuppliers = [];
   document.querySelectorAll('.sup-chk:checked').forEach(cb=>excludedSuppliers.push(cb.value));
   saved.push({ name:name.trim(), state:{
@@ -950,23 +903,23 @@ function saveFilterGroup(){
   alert(`تم حفظ "${name.trim()}"`);
 }
 function loadSavedFilters(){
-  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  const saved = readSaved();
   const c = document.getElementById('saved-filters-list');
   if (!saved.length){ c.innerHTML = '<span style="font-size:11px;color:#9ca3af;">لا توجد فلاتر محفوظة</span>'; return; }
   c.innerHTML = saved.map((f,i)=>`
     <div class="saved-filter-chip" onclick="applySavedFilter(${i},this)">
-      <span>${f.name}</span>
+      <span>${esc(f.name)}</span>
       <span class="del" onclick="event.stopPropagation();deleteSavedFilter(${i})">✕</span>
     </div>`).join('');
 }
 function applySavedFilter(idx, chip){
-  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  const saved = readSaved();
   if (!saved[idx]) return;
   const st = saved[idx].state;
   document.getElementById('flt-search').value = st.search || '';
   document.getElementById('flt-exclude-problems').checked = st.excludeProblems;
   document.querySelectorAll('.sup-chk').forEach(cb=>{
-    cb.checked = st.excludedSuppliers.includes(cb.value);
+    cb.checked = (st.excludedSuppliers || []).includes(cb.value);
     cb.parentElement.classList.toggle('excluded', cb.checked);
   });
   S.odooFilter = st.odooFilter || 'all'; S.tyFilter = st.tyFilter || 'all';
@@ -986,7 +939,7 @@ function applySavedFilter(idx, chip){
   applyFilters();
 }
 function deleteSavedFilter(idx){
-  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  const saved = readSaved();
   saved.splice(idx,1);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
   loadSavedFilters();
@@ -997,8 +950,8 @@ function renderSuppliers(){
   if (!S.suppliers.length){ grid.innerHTML = '<span style="font-size:11px;color:#9ca3af;">لا يوجد موردين</span>'; return; }
   grid.innerHTML = S.suppliers.map(s=>`
     <label class="supplier-item">
-      <input type="checkbox" class="sup-chk" value="${s}" onchange="this.parentElement.classList.toggle('excluded',this.checked);applyFilters()">
-      <span>${s}</span>
+      <input type="checkbox" class="sup-chk" value="${esc(s)}" onchange="this.parentElement.classList.toggle('excluded',this.checked);applyFilters()">
+      <span>${esc(s)}</span>
     </label>`).join('');
 }
 
@@ -1013,10 +966,10 @@ function renderAmReport(items){
     if (i.amConflict) note = '⚠️ Hold + مدير حساب';
     if (i.fixedRaw && isNaN(parseFloat(String(i.fixedRaw).replace(/,/g,'')))) note = '⚠️ السعر الثابت غير صالح';
     return `<tr>
-      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${i.barcode}</td>
-      <td style="direction:ltr;text-align:left;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${i.name || '—'}</td>
-      <td>${i.amRaw ? '<span class="badge b-am">🛑 '+i.amRaw+'</span>' : '—'}</td>
-      <td style="text-align:center;font-weight:700;">${i.fixedRaw || '—'}</td>
+      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${esc(i.barcode)}</td>
+      <td style="direction:ltr;text-align:left;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(i.name) || '—'}</td>
+      <td>${i.amRaw ? '<span class="badge b-am">🛑 '+esc(i.amRaw)+'</span>' : '—'}</td>
+      <td style="text-align:center;font-weight:700;">${esc(i.fixedRaw) || '—'}</td>
       <td style="font-size:11px;">${note}</td>
     </tr>`;
   }).join('');
@@ -1039,7 +992,8 @@ function renderTable(){
     else if (item.fixedRaw) badge = '<span class="badge b-am">💰 سعر ثابت</span>';
     else if (item.holdStock && item.isIncomingStock) badge = '<span class="badge b-hold">Hold+مخزون</span>';
     else if (item.holdStock) badge = '<span class="badge b-hold">🔒 Hold</span>';
-    else if (item.isNew) badge = '<span class="badge b-unk">جديد ⭐</span>';
+    else if (!item.onTrendyol) badge = '<span class="badge b-unk">ليس في ترينديول ⭐</span>';
+    else if (!item.inMaster) badge = '<span class="badge b-unk">ليس في الماستر ⭐</span>';
     else if (!item.hasOdoo && item.stock > 0) badge = '<span class="badge b-none">تصفير</span>';
     else if (!item.hasOdoo) badge = '<span class="badge b-none">بدون أودو</span>';
     else if (item.isChange) badge = '<span class="badge b-short">تغيير</span>';
@@ -1050,12 +1004,12 @@ function renderTable(){
     const displayOdooQty = item.isDistributed ? item.distributedOdooQty : item.odooQty;
     const odooDisplay = item.isPackage 
       ? `<span style="font-size:10px;color:#1e40af;">📦 ${item.pkgComponents.length} مكون | ${item.odooQty > 0 ? item.odooQty + ' متاح' : 'غير متاح'}</span>`
-      : (item.hasOdoo ? displayOdooQty : '<span style="color:#ef4444;">—</span>');
+      : (item.hasOdoo ? esc(item.odooBarcode) : '<span style="color:#ef4444;">—</span>');
 
     return `<tr>
-      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${item.barcode}</td>
-      <td style="direction:ltr;text-align:left;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.name || '—'}</td>
-      <td>${item.supplier || '—'}</td>
+      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${esc(item.barcode)}</td>
+      <td style="direction:ltr;text-align:left;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(item.name) || '—'}</td>
+      <td>${esc(item.supplier) || '—'}</td>
       <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${odooDisplay}</td>
       <td style="text-align:center;">${item.stock}</td>
       <td style="text-align:center;">${item.hasOdoo || item.isPackage ? displayOdooQty : '<span style="color:#ef4444;">—</span>'}</td>
@@ -1081,9 +1035,9 @@ function renderHoldReport(){
   sec.classList.remove('hidden');
   tbody.innerHTML = holdIncoming.map(item=>`
     <tr>
-      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${item.barcode}</td>
-      <td style="direction:ltr;text-align:left;">${item.name || '—'}</td>
-      <td>${item.supplier || '—'}</td>
+      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${esc(item.barcode)}</td>
+      <td style="direction:ltr;text-align:left;">${esc(item.name) || '—'}</td>
+      <td>${esc(item.supplier) || '—'}</td>
       <td style="text-align:center;font-weight:700;color:#ec4899;">${item.stock}</td>
     </tr>`).join('');
 }
@@ -1120,7 +1074,7 @@ function updateDynamicExport(){
   } else if (S.quickFilterActive === 'am'){
     exportCount = S.filtered.filter(i=>i.managerStop || i.fixedRaw).length;
   } else if (S.quickFilterActive === 'pkg'){
-    exportCount = S.filtered.filter(i=>i.isPackage).length;
+    exportCount = S.filtered.filter(i=>i.isPackage && isListed(i)).length;
   } else exportCount = S.filtered.length;
 
   const labels = {
@@ -1255,6 +1209,7 @@ function exportMaster(){
 function exportNew(){
   const data = S.filtered.filter(i=>i.isNew).map(i=>({
     'Barcode': i.barcode,
+    'النوع': !i.onTrendyol ? 'في الماستر وليس في ترينديول' : 'في ترينديول وليس في الماستر',
     'Barcode odoo': i.odooBarcode,
     'Product Name': i.name,
     'Brand': i.brand,
@@ -1288,7 +1243,7 @@ function exportDynamic(){
     columns = ['Barcode', 'Original (List) Price', 'Trendyol Sale Price (VAT included)', 'Product Stock Quantity', 'Barcode odoo', 'VAT', 'السعر الثابت', 'سعر الجملة الثابت', 'عدد القطع'];
     name = `Trendyol_Zeroing_All_${dateStr()}.xlsx`;
   } else if (S.quickFilterActive === 'pkg'){
-    data = visible.filter(i=>i.isPackage).map(trendyolPkgRow);
+    data = visible.filter(i=>i.isPackage && isListed(i)).map(trendyolPkgRow);
     columns = ['Barcode', 'Original (List) Price', 'Trendyol Sale Price (VAT included)', 'Product Stock Quantity', 'Barcode odoo', 'VAT', 'السعر الثابت', 'سعر الجملة الثابت', 'عدد القطع'];
     name = `Packages_${dateStr()}.xlsx`;
   } else if (S.quickFilterActive === 'hold'){

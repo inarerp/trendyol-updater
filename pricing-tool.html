@@ -66,13 +66,16 @@
     <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;">⚙️ معادلات التسعير</h3>
     <div class="info-box">
       💡 <strong>أولوية سعر الجملة:</strong> سعر الجملة الثابت ← Last Purchase Price ← التكلفة.<br>
-      📦 <strong>الباكجات:</strong> سعر الجملة = مجموع (سعر كل مكون × كميته).<br>
+      📦 <strong>الباكجات:</strong> تكلفة الباكج = مجموع (سعر كل مكون × كميته) — بدون ضرب إضافي في عدد القطع.<br>
+      💰 <strong>سعر الجملة الثابت:</strong> للصنف العادي = سعر القطعة الواحدة، وللباكج = سعر الباكج كاملاً.<br>
+      🔒 <strong>السعر الثابت:</strong> سعر بيع شامل الضريبة يُستخدم كما هو بدل السعر المحسوب، ويُحسب له الهامش فقط.<br>
       🔑 <strong>التطابق:</strong> عبر Barcode odoo مع تطبيع الأصفار البادئة.
     </div>
     
     <div class="formula-box">
        <strong>المعادلة:</strong><br>
-      <code>سعر البيع = (سعر الجملة × عدد القطع × الفات + الشحن × 1.15) ÷ (1 - العمولة × 1.15 - الربح المستهدف)</code>
+      <code>سعر البيع = (التكلفة + الشحن) ÷ ((1 − الربح المستهدف) ÷ الفات − العمولة)</code><br>
+      <span style="font-size:11px;">الربح المستهدف = صافي الربح ÷ سعر البيع بدون ضريبة. عند فات 15% تعطي نفس نتيجة المعادلة السابقة تماماً، وتصبح صحيحة أيضاً للأصناف المعفاة.</span>
     </div>
 
     <div class="form-grid">
@@ -81,7 +84,7 @@
         <input type="number" id="commission" value="18" step="0.01" min="0" max="100">
       </div>
       <div class="form-group">
-        <label>الشحن</label>
+        <label>الشحن (بدون ضريبة)</label>
         <input type="number" id="shipping" value="0" step="0.01" min="0">
       </div>
       <div class="form-group">
@@ -96,6 +99,10 @@
         </select>
       </div>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;cursor:pointer;">
+      <input type="checkbox" id="writePrice" checked style="width:16px;height:16px;">
+      اكتب السعر الجديد في أعمدة ترينديول (سعر البيع، وسعر القائمة = سعر البيع + 30%)
+    </label>
   </div>
 
   <div style="text-align:center;margin:20px 0;">
@@ -173,7 +180,8 @@ async function readExcel(file) {
     const reader = new FileReader();
     reader.onload = e => {
       try {
-        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', raw:false});
+        // ✅ raw:true يحافظ على النص في CSV (الأصفار البادئة)
+        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', raw:true});
         resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''}));
       } catch (err) { reject(err); }
     };
@@ -204,6 +212,30 @@ function findCol(headers, names) {
   return -1;
 }
 
+// ✅ قراءة الأرقام مع إزالة فواصل الآلاف (كان parseFloat("1,250.00") يعطي 1)
+function toNum(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  const n = parseFloat(String(v).replace(/,/g, '').trim());
+  return isNaN(n) ? 0 : n;
+}
+
+// ✅ تهريب النصوص قبل innerHTML
+const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+
+// ✅ [C2] تطبيع الفات: الفارغ = 15% افتراضياً (كان يُعتبر معفى)، والصفر الصريح = معفى
+// 15 → 1.15 ، 0.15 → 1.15 ، 1.15 تبقى ، 0 أو 1 → 1
+const DEFAULT_VAT_MULT = 1.15;
+const LIST_PRICE_MARKUP = 1.30;   // سعر القائمة الوهمي = سعر البيع × 1.30
+function normalizeVat(v) {
+  if (v === '' || v === null || v === undefined || String(v).trim() === '') return { vat: DEFAULT_VAT_MULT, defaulted: true };
+  const n = toNum(v);
+  if (n <= 0) return { vat: 1, defaulted: false };
+  if (n < 1)  return { vat: 1 + n, defaulted: false };
+  if (n < 2)  return { vat: n, defaulted: false };
+  return { vat: 1 + n / 100, defaulted: false };
+}
+
 function normalizeBarcode(bc) {
   if (!bc) return '';
   const s = String(bc).trim();
@@ -214,7 +246,8 @@ function normalizeBarcode(bc) {
 function isPackage(value) {
   if (!value) return false;
   const s = String(value).trim();
-  return s.includes(':') && s.includes(',');
+  // ✅ إصلاح: باكج من مكوّن واحد (123:6) لم يكن يُكتشف
+  return s.includes(':');
 }
 
 function parsePackage(value) {
@@ -222,8 +255,8 @@ function parsePackage(value) {
   const parts = String(value).split(',');
   for (const part of parts) {
     const [bc, qty] = part.split(':');
-    if (bc && qty) {
-      components.push({ barcode: bc.trim(), qty: parseInt(qty.trim()) || 1 });
+    if (bc && bc.trim()) {
+      components.push({ barcode: bc.trim(), qty: Math.max(1, parseInt(String(qty || '').trim()) || 1) });
     }
   }
   return components;
@@ -236,19 +269,22 @@ function showStatus(msg, type='warn') {
   el.classList.remove('hidden');
 }
 
+// cost وshipping بدون ضريبة. سعر البيع شامل الفات، والعمولة تُحسب على السعر الشامل.
+// الهدف: صافي الربح ÷ (سعر البيع ÷ الفات) = الربح المستهدف
+// عند vat = 1.15 النتيجة مطابقة حرفياً للمعادلة القديمة: (C×1.15 + S×1.15) ÷ (1 − 1.15×c − t)
 function calculateSellingPrice(cost, vat, shipping, commission, targetProfit) {
-  const costAfterVAT = cost * vat;
-  const denominator = 1 - commission * 1.15 - targetProfit;
+  const denominator = (1 - targetProfit) / vat - commission;
   if (denominator <= 0) return null;
-  return (costAfterVAT + shipping * 1.15) / denominator;
+  return (cost + shipping) / denominator;
 }
 
+// ✅ تحقق مستقل فعلي (كان يعيد نفس المعادلة فيعطي الهدف دائماً)
 function forwardVerify(sellingPrice, cost, vat, shipping, commission) {
-  const costAfterVAT = cost * vat;
-  const totalFees = (sellingPrice * commission + shipping) * 1.15;
-  const netProfit = sellingPrice - totalFees - costAfterVAT;
-  const margin = sellingPrice > 0 ? netProfit / sellingPrice : 0;
-  return { totalFees, netProfit, margin, costAfterVAT };
+  const revenueExVat = sellingPrice / vat;
+  const totalFees = sellingPrice * commission + shipping;   // بدون ضريبة
+  const netProfit = revenueExVat - totalFees - cost;
+  const margin = revenueExVat > 0 ? netProfit / revenueExVat : 0;
+  return { totalFees, netProfit, margin, revenueExVat };
 }
 
 async function processMerge() {
@@ -257,40 +293,60 @@ async function processMerge() {
   document.getElementById('status-msg').classList.add('hidden');
 
   try {
-    const commission = parseFloat(document.getElementById('commission').value) / 100;
-    const shipping = parseFloat(document.getElementById('shipping').value);
-    const profit = parseFloat(document.getElementById('profit').value) / 100;
+    // ✅ [M8] الخانات الفارغة لم تعد تُقبل كصفر
+    const rawVal = id => String(document.getElementById(id).value || '').trim();
+    if (rawVal('commission') === '' || rawVal('profit') === '') throw new Error('أدخل العمولة والربح المستهدف.');
+    const commission = toNum(rawVal('commission')) / 100;
+    const shipping = toNum(rawVal('shipping'));
+    const profit = toNum(rawVal('profit')) / 100;
     const shipMode = document.getElementById('shipMode').value;
-
-    if (isNaN(commission) || isNaN(profit) || commission + profit >= 1) {
-      throw new Error('نسب العمولة والربح غير صالحة.');
+    const writePrice = !!document.getElementById('writePrice')?.checked;
+    if (commission < 0 || profit < 0 || shipping < 0 || commission >= 1 || profit >= 1) {
+      throw new Error('نسب العمولة أو الربح أو الشحن خارج النطاق.');
     }
+    const warnings = [];
 
     // 1. قراءة أودو
     const odooRaw = await readExcel(files.odoo);
-    const oHeaders = odooRaw[0];
+    // ✅ اكتشاف صف العناوين بدل افتراض الصف الأول
+    const oHeaderRow = findHeaderRowIndex(odooRaw, ['باركود', 'barcode', 'default_code', 'internal reference']);
+    const oHeaders = odooRaw[oHeaderRow] || [];
     const oColBar = findCol(oHeaders, ['باركود', 'barcode', 'default_code', 'internal reference']);
     const oColCost = findCol(oHeaders, ['التكلفة', 'cost', 'standard_price']);
     const oColLPP = findCol(oHeaders, ['last purchase price', 'سعر اخر شراء', 'last_purchase_price']);
     const oColQty = findCol(oHeaders, ['الكمية في اليد', 'quantity', 'qty_available']);
 
     if (oColBar === -1) throw new Error('لم يتم العثور على عمود "باركود" في أودو.');
+    // ✅ [M1] تنبيه عند غياب آخر سعر شراء
+    if (oColLPP === -1) warnings.push('ملف أودو بدون عمود Last Purchase Price — التسعير كله على متوسط التكلفة');
 
+    // ✅ الباركود المكرر: تُجمع الكمية ويؤخذ أول سعر غير صفري (نفس منطق أداة المخزون)
     const odooMap = new Map();
-    for(let i=1; i<odooRaw.length; i++) {
-      const bc = String(odooRaw[i][oColBar] || '').trim();
+    for(let i=oHeaderRow+1; i<odooRaw.length; i++) {
+      const row = odooRaw[i] || [];
+      const bc = String(row[oColBar] ?? '').trim();
       if(!bc) continue;
-      const lpp = parseFloat(odooRaw[i][oColLPP]) || 0;
-      const cost = parseFloat(odooRaw[i][oColCost]) || 0;
-      const qty = oColQty !== -1 ? (parseFloat(odooRaw[i][oColQty]) || 0) : 0;
-      const wholesalePrice = (lpp > 0) ? lpp : cost;
-      odooMap.set(normalizeBarcode(bc), { wholesalePrice, lpp, cost, qty });
+      const lpp = oColLPP !== -1 ? toNum(row[oColLPP]) : 0;
+      const cost = oColCost !== -1 ? toNum(row[oColCost]) : 0;
+      const qty = oColQty !== -1 ? toNum(row[oColQty]) : 0;
+      const k = normalizeBarcode(bc);
+      const ex = odooMap.get(k);
+      if (ex) {
+        ex.qty += qty;
+        if (!ex.lpp && lpp > 0) ex.lpp = lpp;
+        if (!ex.cost && cost > 0) ex.cost = cost;
+        ex.wholesalePrice = ex.lpp > 0 ? ex.lpp : ex.cost;
+      } else {
+        odooMap.set(k, { wholesalePrice: (lpp > 0) ? lpp : cost, lpp, cost, qty });
+      }
     }
 
     // 2. قراءة المخزون
     const invRaw = await readExcel(files.inventory);
     const headerRowIndex = findHeaderRowIndex(invRaw, ['barcode', 'باركود', 'original', 'trendyol']);
     const iHeaders = invRaw[headerRowIndex];
+    // ✅ [M9] رسالة واضحة لملف فارغ
+    if (!iHeaders || !iHeaders.some(h => String(h).trim() !== '')) throw new Error('ملف المخزون فارغ أو بدون صف عناوين.');
     
     const iColBar = findCol(iHeaders, ['barcode', 'باركود']);
     const iColOdooBar = findCol(iHeaders, ['barcode odoo', 'باركود أودو']);
@@ -320,21 +376,25 @@ async function processMerge() {
       'سعر الجملة',
       'مصدر السعر', // ✅ جديد
       'سعر البيع (باقة)',
+      'مصدر سعر البيع',
+      'السعر السابق',
       'الربح %',
       'النوع',
       'الحالة'
     ];
     
     let matchedCount = 0, fallbackCount = 0, errorCount = 0, notFoundCount = 0, pkgCount = 0, fixedWholesaleCount = 0;
+    let fixedPriceCount = 0, lossCount = 0, vatDefaulted = 0;
     const previewRows = [];
 
     for(let i = headerRowIndex + 1; i < invRaw.length; i++) {
-      const rowObj = {};
-      iHeaders.forEach((h, idx) => { rowObj[h] = invRaw[i][idx]; });
+      const row = invRaw[i] || [];
+      // ✅ القراءة بالفهرس بدل اسم العمود (العناوين المكررة كانت تُدمج)
+      const cell = idx => idx !== -1 ? row[idx] : '';
 
-      const rawBc = String(invRaw[i][iColBar] || '').trim();
-      const rawOdooBc = String(invRaw[i][iColOdooBar] || '').trim();
-      if (!rawBc && iHeaders.every((h, idx) => !invRaw[i][idx])) continue;
+      const rawBc = String(row[iColBar] ?? '').trim();
+      const rawOdooBc = String(row[iColOdooBar] ?? '').trim();
+      if (!rawBc && row.every(v => v === '' || v === null || v === undefined)) continue;
 
       const normalizedOdooBc = normalizeBarcode(rawOdooBc);
       const odooData = odooMap.get(normalizedOdooBc);
@@ -342,69 +402,59 @@ async function processMerge() {
       let wholesalePrice = 0;
       let status = 'لم يُعثر عليه';
       let productType = 'عادي';
-      let packQty = iColPieces !== -1 ? (parseInt(rowObj[iHeaders[iColPieces]]) || 1) : 1;
+      let packQty = iColPieces !== -1 ? (Math.max(1, Math.floor(toNum(cell(iColPieces)))) || 1) : 1;
       let wholesaleSource = '—';
 
       // ✅ قراءة سعر الجملة الثابت من الملف
-      const fixedWholesale = iColFixedWholesale !== -1 
-        ? (parseFloat(rowObj[iHeaders[iColFixedWholesale]]) || 0) 
-        : 0;
+      const fixedWholesale = toNum(cell(iColFixedWholesale));
 
       // ===== معالجة الباكج =====
+      let packCost = 0;
       if (isPackage(rawOdooBc)) {
         productType = 'باكج';
         pkgCount++;
         const components = parsePackage(rawOdooBc);
         let totalWholesale = 0;
-        let minStockRatio = Infinity;
-        let totalPackQty = 0;
-        let allFound = true;
+        let allFound = components.length > 0;
+        let missingPrice = false;
+        // عدد القطع الفعلي للباكج (للشحن بالقطعة فقط) يُحسب دائماً من المكونات
+        const totalPackQty = components.reduce((a, c) => a + c.qty, 0);
+        packQty = totalPackQty > 0 ? totalPackQty : 1;
 
         for (const comp of components) {
           const compData = odooMap.get(normalizeBarcode(comp.barcode));
-          if (!compData) {
-            allFound = false;
-            continue;
-          }
-          // ✅ تطبيق الأولوية: الثابت ← LPP ← التكلفة لكل مكون
-          let compWholesale = compData.wholesalePrice;
-          // ملاحظة: الباكجات تستخدم أسعار المكونات من أودو مباشرة
-          // إذا أردت استخدام سعر ثابت للمكونات داخل الباكج، يمكن تعديل هذا الجزء
-          totalWholesale += compWholesale * comp.qty;
-          if (compData.qty > 0) {
-            const ratio = Math.floor(compData.qty / comp.qty);
-            if (ratio < minStockRatio) minStockRatio = ratio;
-          } else {
-            minStockRatio = 0;
-          }
-          totalPackQty += comp.qty;
+          if (!compData) { allFound = false; continue; }
+          if (!(compData.wholesalePrice > 0)) missingPrice = true;
+          totalWholesale += compData.wholesalePrice * comp.qty;
         }
 
-        // ✅ إذا كان للباكج سعر جملة ثابت، يتغلب على الحساب
         if (fixedWholesale > 0) {
+          // ✅ السعر الثابت للباكج = سعر الباكج كاملاً، والحالة تُحدَّث (كانت تبقى "لم يُعثر عليه")
           wholesalePrice = fixedWholesale;
           wholesaleSource = 'ثابت';
           fixedWholesaleCount++;
-        } else if (allFound && minStockRatio !== Infinity) {
+          matchedCount++;
+          status = 'تم التسعير (باكج)';
+        } else if (allFound && !missingPrice) {
           matchedCount++;
           wholesalePrice = totalWholesale;
-          packQty = totalPackQty > 0 ? totalPackQty : 1;
           wholesaleSource = 'محسوب من المكونات';
           status = 'تم التسعير (باكج)';
         } else {
           notFoundCount++;
-          status = 'باكج - مكونات ناقصة';
+          status = allFound ? 'باكج - مكوّن بدون سعر' : 'باكج - مكونات ناقصة';
         }
+        // ✅ إصلاح حرج: wholesalePrice هنا تكلفة الباكج كاملاً — لا تُضرب في عدد القطع مرة ثانية
+        packCost = wholesalePrice;
       } else {
-        // منتج عادي
-        // ✅ تطبيق الأولوية: الثابت ← LPP ← التكلفة
+        // منتج عادي — الأولوية: الثابت ← LPP ← التكلفة (السعر للقطعة)
         if (fixedWholesale > 0) {
           wholesalePrice = fixedWholesale;
           wholesaleSource = 'ثابت';
           fixedWholesaleCount++;
           matchedCount++;
           status = 'تم التسعير';
-        } else if (odooData) {
+        } else if (odooData && odooData.wholesalePrice > 0) {
           matchedCount++;
           wholesalePrice = odooData.wholesalePrice;
           wholesaleSource = odooData.lpp > 0 ? 'LPP' : 'تكلفة';
@@ -412,47 +462,67 @@ async function processMerge() {
           if (odooData.lpp <= 0 && odooData.cost > 0) fallbackCount++;
         } else {
           notFoundCount++;
+          if (odooData) status = 'موجود بدون سعر';
         }
+        packCost = wholesalePrice * packQty;
       }
 
-      const vat = iColVat !== -1 ? (parseFloat(rowObj[iHeaders[iColVat]]) || 1) : 1;
-      const originalPrice = iColOriginalPrice !== -1 ? rowObj[iHeaders[iColOriginalPrice]] : '';
-      const originalSalePrice = iColSalePrice !== -1 ? rowObj[iHeaders[iColSalePrice]] : '';
-      const stockQty = iColStock !== -1 ? rowObj[iHeaders[iColStock]] : '';
+      const vr = iColVat !== -1 ? normalizeVat(cell(iColVat)) : { vat: DEFAULT_VAT_MULT, defaulted: true };
+      const vat = vr.vat;
+      if (vr.defaulted) vatDefaulted++;
+      const originalPrice = cell(iColOriginalPrice);
+      const originalSalePrice = cell(iColSalePrice);
+      const stockQty = cell(iColStock);
       const odooBarcode = rawOdooBc;
-      const fixedPrice = iColFixedPrice !== -1 ? rowObj[iHeaders[iColFixedPrice]] : '';
+      const fixedPrice = cell(iColFixedPrice);
+      const fixedSell = toNum(fixedPrice);
 
-      const packCost = wholesalePrice * packQty;
       const packShipping = shipMode === 'piece' ? shipping * packQty : shipping;
-      const sellingPrice = calculateSellingPrice(packCost, vat, packShipping, commission, profit);
-      let profitMargin = 0;
+      let sellingPrice = null;
+      let priceSource = '';
+      let profitMargin = null;
       let finalStatus = status;
 
-      if (wholesalePrice <= 0) {
-        finalStatus = 'سعر الجملة غير متاح';
-        errorCount++;
-      } else if (sellingPrice === null || sellingPrice <= 0) {
-        finalStatus = 'فشل التسعير';
-        errorCount++;
-      } else {
-        const verify = forwardVerify(sellingPrice, packCost, vat, packShipping, commission);
-        profitMargin = verify.margin;
+      // ✅ [H2] السعر الثابت (شامل الضريبة) يُستخدم كما هو ويتغلب على المعادلة
+      if (fixedSell > 0) {
+        sellingPrice = fixedSell;
+        priceSource = 'سعر ثابت';
+        fixedPriceCount++;
+        if (wholesalePrice <= 0) finalStatus = 'سعر ثابت — بدون تكلفة';
+        else finalStatus = 'سعر ثابت';
+      } else if (wholesalePrice > 0) {
+        sellingPrice = calculateSellingPrice(packCost, vat, packShipping, commission, profit);
+        priceSource = 'محسوب';
+        if (sellingPrice === null || sellingPrice <= 0) { sellingPrice = null; finalStatus = 'فشل التسعير'; errorCount++; }
       }
+
+      if (sellingPrice > 0 && wholesalePrice > 0) {
+        profitMargin = forwardVerify(sellingPrice, packCost, vat, packShipping, commission).margin;
+        if (profitMargin < 0) { lossCount++; finalStatus = '⚠️ خاسر بهذا السعر'; }
+      }
+
+      // ✅ [H4] كتابة السعر الجديد في أعمدة ترينديول — سعر القائمة دائماً ≥ سعر البيع
+      const newSale = sellingPrice > 0 ? Number(sellingPrice.toFixed(2)) : null;
+      const outSale = writePrice && newSale ? newSale : originalSalePrice;
+      const outList = writePrice && newSale ? Number((newSale * LIST_PRICE_MARKUP).toFixed(2)) : originalPrice;
 
       const finalRow = {
         'Barcode': rawBc,
-        'Original (List) Price': originalPrice,
-        'Trendyol Sale Price (VAT included)': originalSalePrice,
+        'Original (List) Price': outList,
+        'Trendyol Sale Price (VAT included)': outSale,
         'Product Stock Quantity': stockQty,
         'Barcode odoo': odooBarcode,
         'VAT': vat,
         'السعر الثابت': fixedPrice,
-        'سعر الجملة الثابت': fixedWholesale > 0 ? Number(fixedWholesale.toFixed(2)) : '', // ✅ جديد
+        'سعر الجملة الثابت': fixedWholesale > 0 ? Number(fixedWholesale.toFixed(2)) : '',
         'عدد القطع': packQty,
         'سعر الجملة': wholesalePrice > 0 ? Number(wholesalePrice.toFixed(2)) : '',
-        'مصدر السعر': wholesaleSource, // ✅ جديد
-        'سعر البيع (باقة)': sellingPrice !== null && sellingPrice > 0 ? Number(sellingPrice.toFixed(2)) : '',
-        'الربح %': profitMargin > 0 ? Number((profitMargin * 100).toFixed(2)) : '',
+        'مصدر السعر': wholesaleSource,
+        'سعر البيع (باقة)': newSale ?? '',
+        'مصدر سعر البيع': priceSource,
+        'السعر السابق': originalSalePrice,
+        // ✅ [L5] الهامش السالب يظهر
+        'الربح %': profitMargin !== null ? Number((profitMargin * 100).toFixed(2)) : '',
         'النوع': productType,
         'الحالة': finalStatus
       };
@@ -468,20 +538,20 @@ async function processMerge() {
     
     const tbody = document.getElementById('preview-body');
     tbody.innerHTML = previewRows.map(r => {
-      const statusColor = r['الحالة'].includes('تم') ? '#10b981' : 
+      const statusColor = r['الحالة'].includes('خاسر') ? '#ef4444' : r['الحالة'].includes('ثابت') ? '#6366f1' : r['الحالة'].includes('تم') ? '#10b981' : 
                           r['الحالة'].includes('فشل') || r['الحالة'].includes('غير متاح') ? '#ef4444' : 
                           r['الحالة'].includes('ناقص') ? '#f59e0b' : '#6b7280';
       return `<tr style="border-bottom:1px solid #e5e7eb;">
-        <td style="padding:6px;font-family:monospace;font-size:11px;">${r['Barcode'] || '-'}</td>
-        <td style="padding:6px;text-align:left;">${r['Original (List) Price'] || '-'}</td>
-        <td style="padding:6px;text-align:left;">${r['Trendyol Sale Price (VAT included)'] || '-'}</td>
-        <td style="padding:6px;text-align:center;">${r['Product Stock Quantity']}</td>
+        <td style="padding:6px;font-family:monospace;font-size:11px;">${esc(r['Barcode']) || '-'}</td>
+        <td style="padding:6px;text-align:left;">${esc(r['Original (List) Price']) || '-'}</td>
+        <td style="padding:6px;text-align:left;">${esc(r['Trendyol Sale Price (VAT included)']) || '-'}</td>
+        <td style="padding:6px;text-align:center;">${esc(r['Product Stock Quantity'])}</td>
         <td style="padding:6px;text-align:center;">${r['VAT']}</td>
         <td style="padding:6px;text-align:center;">${r['عدد القطع']}</td>
         <td style="padding:6px;text-align:left;">${r['سعر الجملة'] || '-'}</td>
         <td style="padding:6px;text-align:center;">${r['مصدر السعر'] ? `<span class="fw-badge">${r['مصدر السعر']}</span>` : '-'}</td>
         <td style="padding:6px;text-align:left;font-weight:700;color:#6366f1;">${r['سعر البيع (باقة)'] || '-'}</td>
-        <td style="padding:6px;text-align:center;">${r['الربح %'] ? r['الربح %'] + '%' : '-'}</td>
+        <td style="padding:6px;text-align:center;${r['الربح %'] !== '' && r['الربح %'] < 0 ? 'color:#ef4444;font-weight:700;' : ''}">${r['الربح %'] !== '' ? r['الربح %'] + '%' : '-'}</td>
         <td style="padding:6px;text-align:center;">${r['النوع'] === 'باكج' ? '<span class="pkg-badge">📦 باكج</span>' : 'عادي'}</td>
         <td style="padding:6px;"><span style="background:${statusColor};color:white;padding:2px 8px;border-radius:10px;font-size:10px;">${r['الحالة']}</span></td>
       </tr>`;
@@ -491,7 +561,10 @@ async function processMerge() {
       `أول 20 من ${mergedData.length} | العمولة: ${(commission*100).toFixed(1)}% | الشحن: ${shipping} | الربح: ${(profit*100).toFixed(1)}% | 📦 باكجات: ${pkgCount} | 💰 سعر ثابت: ${fixedWholesaleCount}`;
     
     document.getElementById('results-card').classList.remove('hidden');
-    showStatus(`✅ تم! ${matchedCount} تم تسعيره (${fixedWholesaleCount} بسعر ثابت) | ${fallbackCount} بالتكلفة | ${pkgCount} باكج | ${notFoundCount} غير موجود | ${errorCount} فشل`);
+    if (vatDefaulted) warnings.push(`${vatDefaulted} صنف بدون فات — تم افتراض 15%`);
+    if (lossCount) warnings.push(`${lossCount} صنف خاسر بالسعر الثابت`);
+    showStatus(`تم! ${matchedCount} له تكلفة (${fixedWholesaleCount} بسعر جملة ثابت) | ${fixedPriceCount} بسعر بيع ثابت | ${fallbackCount} بالتكلفة بدل LPP | ${pkgCount} باكج | ${notFoundCount} غير موجود | ${errorCount} فشل`
+      + (warnings.length ? ' — ⚠️ ' + warnings.join(' | ') : ''), warnings.length ? 'warn' : 'info');
 
   } catch(e) {
     showStatus('خطأ: ' + e.message, 'warn');

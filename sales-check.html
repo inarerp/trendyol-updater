@@ -138,7 +138,19 @@ const S = {
 const clean = v => v ? String(v).trim() : '';
 const toInt = v => { if(!v) return 0; const n = parseInt(String(v).replace(/,/g,''),10); return isNaN(n)?0:n; };
 const toNum = v => { if(!v) return 0; const n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n)?0:n; };
-const norm = bc => { if(!bc) return ''; return String(bc).trim(); };
+// ✅ إصلاح: نفس التطبيع المستخدم في أداة المخزون (حذف الأصفار البادئة)
+const norm = bc => { if(!bc) return ''; const s = String(bc).trim(); return s.replace(/^0+/,'') || s; };
+const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+// ✅ دعم الباكجات بنفس صيغة الماستر: bc:qty,bc:qty
+const isPackage = v => !!v && String(v).includes(':');
+function parsePackage(value){
+  const out = [];
+  String(value).split(',').forEach(part => {
+    const [bc, qty] = part.split(':');
+    if (bc && bc.trim()) out.push({ barcode: bc.trim(), qty: Math.max(1, parseInt(String(qty||'').trim()) || 1) });
+  });
+  return out;
+}
 const dateStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
 const SPEC = {
@@ -188,7 +200,8 @@ function readRows(file){
     const r = new FileReader();
     r.onload = e => {
       try {
-        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array', raw:false });
+        // ✅ raw:true يحافظ على النص في CSV (الأصفار البادئة)
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array', raw:true });
         const ws = wb.Sheets[wb.SheetNames[0]];
         res(XLSX.utils.sheet_to_json(ws, { header:1, defval:'' }));
       } catch(err){ rej(err); }
@@ -238,8 +251,13 @@ function getBoth(map, key){
   return map.has(n) ? map.get(n) : undefined;
 }
 
+let busy = false;
 async function processAll(){
   if (!S.files.sales || !S.files.odoo) return alert('ارفع ملف المبيعات وملف أودو على الأقل');
+  if (busy) return; busy = true;
+  try { await processAllInner(); } finally { busy = false; }
+}
+async function processAllInner(){
   const warnings = [];
   try {
     const salesRows = await readRows(S.files.sales);
@@ -251,12 +269,18 @@ async function processAll(){
     for (const r of salesRows.slice(dS.headerRow+1)){
       const code = clean(r[dS.map.code]);
       const tybc = dS.map.tybarcode!==undefined ? clean(r[dS.map.tybarcode]) : '';
-      const key = code || tybc;
+      // ✅ إصلاح: التجميع بباركود ترينديول (فريد لكل إدراج). التجميع بـ Stock Code كان يدمج
+      // إدراجات مختلفة في عدد القطع (مفرد + باكت 6) ويطبق عدد قطع أحدها على الكل
+      const key = tybc ? 'T:' + norm(tybc) : 'C:' + norm(code);
       if (!key) continue;
       const st = dS.map.status!==undefined ? clean(r[dS.map.status]).toLowerCase() : '';
       if (st.includes('cancel')) { S.skippedCancel++; continue; }
+      // ✅ الكمية الفارغة = 1، والصفر/السالب يُتجاهل
+      // ✅ [C3] فحص الخلية الأصلية: الرقم صفر لم يعد يُحسب 1
+      const qCell = r[dS.map.qty];
+      const q = (qCell === '' || qCell === null || qCell === undefined || String(qCell).trim() === '') ? 1 : toInt(qCell);
+      if (q <= 0) continue;
       salesRowsRead++;
-      const q = toInt(r[dS.map.qty]) || 1;
       let p = pivot.get(key);
       if (!p){ p = { code, tybarcode: tybc, sold:0, name: dS.map.name!==undefined ? clean(r[dS.map.name]) : '' }; pivot.set(key, p); }
       p.sold += q;
@@ -267,10 +291,15 @@ async function processAll(){
     const odooRows = await readRows(S.files.odoo);
     const dO = detect(odooRows, SPEC.odoo);
     if (!dO) return alert('ملف أودو: مش لاقي عمود الباركود أو الكمية.\nالأعمدة اللي لقيناها: ' + guessHeaders(odooRows));
+    // ✅ الباركود المكرر في أودو تُجمع كمياته
     const odooMap = new Map();
     for (const r of odooRows.slice(dO.headerRow+1)){
       const bc = clean(r[dO.map.barcode]); if (!bc) continue;
-      putBoth(odooMap, bc, { qty: toNum(r[dO.map.qty]), name: dO.map.name!==undefined ? clean(r[dO.map.name]) : '' });
+      const k = norm(bc);
+      const ex = odooMap.get(k);
+      const name = dO.map.name!==undefined ? clean(r[dO.map.name]) : '';
+      if (ex) { ex.qty += toNum(r[dO.map.qty]); if (!ex.name) ex.name = name; }
+      else odooMap.set(k, { qty: toNum(r[dO.map.qty]), name });
     }
 
     const masterMap = new Map();
@@ -310,21 +339,36 @@ async function processAll(){
       } catch(err){ warnings.push(`ملف مورد "${name}": فشل القراءة (${err.message})`); }
     }
 
+    // يرجع مخزون أودو بوحدة الإدراج: للصنف العادي قطع، وللباكج عدد باكجات كاملة
+    function resolveOdoo(ref){
+      if (!ref) return undefined;
+      if (isPackage(ref)){
+        const comps = parsePackage(ref);
+        if (!comps.length) return undefined;
+        let min = Infinity;
+        for (const c of comps){
+          const d = getBoth(odooMap, c.barcode);
+          if (!d) return undefined;
+          min = Math.min(min, d.qty > 0 ? Math.floor(d.qty / c.qty) : 0);
+        }
+        return { qty: min, name: '', isPkg: true, key: 'PKG:' + comps.map(c=>norm(c.barcode)+':'+c.qty).join(',') };
+      }
+      const d = getBoth(odooMap, ref);
+      return d ? { qty: d.qty, name: d.name, isPkg: false, key: norm(ref) } : undefined;
+    }
+
     S.results = [];
     for (const p of pivot.values()){
       const master = getBoth(masterMap, p.tybarcode) || getBoth(masterMap, p.code);
-      const packQty = master && master.pieces > 0 ? master.pieces : 1;
+
+      // ✅ نفس أولوية أداة المخزون: Barcode odoo من الماستر ← Stock Code ← باركود ترينديول
+      let odoo = (master && master.odoo) ? resolveOdoo(master.odoo) : undefined;
+      if (odoo === undefined) odoo = resolveOdoo(p.code);
+      if (odoo === undefined) odoo = resolveOdoo(p.tybarcode);
+
+      const packQty = odoo && odoo.isPkg ? 1 : (master && master.pieces > 0 ? master.pieces : 1);
       const needed = p.sold * packQty;
-
-      let odoo = getBoth(odooMap, p.code);
-      if (odoo === undefined && master && master.odoo) odoo = getBoth(odooMap, master.odoo);
-      if (odoo === undefined) odoo = getBoth(odooMap, p.tybarcode);
-
-      const ourStock = odoo ? odoo.qty : (odoo === undefined ? null : 0);
-      let status;
-      if (ourStock === null || ourStock === 0) status = 'none';
-      else if (ourStock >= needed) status = 'ok';
-      else status = 'short';
+      const ourStock = odoo ? odoo.qty : null;
 
       const supHits = []; const seen = new Set();
       for (const sup of S.suppliers){
@@ -333,16 +377,31 @@ async function processAll(){
         if (v !== undefined && !seen.has(sup.name)){ seen.add(sup.name); supHits.push({ name: sup.name, qty: v }); }
       }
 
-      if (!master && ourStock === null && supHits.length === 0) status = 'unknown';
-
       S.results.push({
         tybarcode: p.tybarcode || '',
         code: p.code,
         name: p.name || (master && master.name) || (odoo && odoo.name) || '',
         sold: p.sold, packQty, needed,
-        ourStock, remaining: ourStock === null ? null : ourStock - needed,
-        status, suppliers: supHits
+        ourStock, odooKey: odoo ? odoo.key : null, hasMaster: !!master,
+        suppliers: supHits
       });
+    }
+
+    // ✅ إصلاح: الإدراجات المشتركة في نفس صنف أودو تُقارن بالمخزون مجتمعة، لا كل واحد منفرداً
+    const groupNeed = new Map(), groupCount = new Map();
+    for (const r of S.results){
+      if (!r.odooKey) continue;
+      groupNeed.set(r.odooKey, (groupNeed.get(r.odooKey)||0) + r.needed);
+      groupCount.set(r.odooKey, (groupCount.get(r.odooKey)||0) + 1);
+    }
+    for (const r of S.results){
+      r.groupNeeded = r.odooKey ? groupNeed.get(r.odooKey) : r.needed;
+      r.sharedWith = r.odooKey ? groupCount.get(r.odooKey) - 1 : 0;
+      r.remaining = r.ourStock === null ? null : r.ourStock - r.groupNeeded;
+      if (r.ourStock === null || r.ourStock <= 0) r.status = 'none';
+      else if (r.ourStock >= r.groupNeeded) r.status = 'ok';
+      else r.status = 'short';
+      if (!r.hasMaster && r.ourStock === null && r.suppliers.length === 0) r.status = 'unknown';
     }
 
     const order = { none:0, short:1, unknown:2, ok:3 };
@@ -384,7 +443,8 @@ function getVisible(){
 function renderStats(){
   const c = t => S.results.filter(r=>r.status===t).length;
   document.getElementById('s-items').textContent = S.results.length.toLocaleString();
-  document.getElementById('s-pieces').textContent = S.results.reduce((a,r)=>a+r.sold,0).toLocaleString();
+  // ✅ إصلاح: إجمالي القطع = المطلوب بالقطع، وليس عدد الإدراجات
+  document.getElementById('s-pieces').textContent = S.results.reduce((a,r)=>a+r.needed,0).toLocaleString();
   document.getElementById('s-ok').textContent = c('ok').toLocaleString();
   document.getElementById('s-short').textContent = c('short').toLocaleString();
   document.getElementById('s-none').textContent = c('none').toLocaleString();
@@ -404,15 +464,18 @@ function renderTable(){
   tbody.innerHTML = visible.slice(0,limit).map(r => {
     const m = STATUS_META[r.status];
     const supText = r.suppliers.length
-      ? r.suppliers.map(s => s.qty!==null ? `${s.name} (${s.qty})` : s.name).join('، ')
+      ? r.suppliers.map(s => s.qty!==null ? `${esc(s.name)} (${s.qty})` : esc(s.name)).join('، ')
       : '—';
+    const neededCell = r.sharedWith > 0
+      ? `${r.needed}<br><span style="font-size:10px;color:#6366f1;">إجمالي ${r.groupNeeded} مع ${r.sharedWith} إدراج</span>`
+      : r.needed;
     return `<tr>
-      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${r.tybarcode || '—'}</td>
-      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${r.code || '—'}</td>
-      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.name || '—'}</td>
+      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${esc(r.tybarcode) || '—'}</td>
+      <td style="direction:ltr;text-align:left;font-family:monospace;font-size:11px;">${esc(r.code) || '—'}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.name) || '—'}</td>
       <td style="text-align:center;font-weight:700;">${r.sold}</td>
       <td style="text-align:center;">${r.packQty}</td>
-      <td style="text-align:center;">${r.needed}</td>
+      <td style="text-align:center;">${neededCell}</td>
       <td style="text-align:center;">${r.ourStock===null ? '<span style="color:#ef4444;">—</span>' : r.ourStock}</td>
       <td style="text-align:center;font-weight:700;color:${r.remaining!==null && r.remaining<0 ? '#ef4444' : '#10b981'}">${r.remaining===null ? '—' : r.remaining}</td>
       <td><span class="badge ${m.badge}">${m.label}</span></td>
@@ -445,6 +508,7 @@ function exportResults(){
     'إجمالي المباع': r.sold,
     'عدد القطع': r.packQty,
     'قطع مطلوبة': r.needed,
+    'إجمالي المطلوب للصنف (كل الإدراجات)': r.groupNeeded,
     'مخزوننا': r.ourStock===null ? '' : r.ourStock,
     'المتبقي': r.remaining===null ? '' : r.remaining,
     'الحالة': STATUS_META[r.status].label,

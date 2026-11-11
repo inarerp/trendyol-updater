@@ -111,7 +111,8 @@ async function readExcel(file) {
     const reader = new FileReader();
     reader.onload = e => {
       try {
-        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', raw: false });
+        // ✅ raw:true يحافظ على النص في CSV (الأصفار البادئة)
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', raw: true });
         resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' }));
       } catch (err) { reject(err); }
     };
@@ -132,6 +133,18 @@ function findCol(headers, names) {
   return -1;
 }
 
+// ✅ أدوات مشتركة: تطبيع الباركود، تهريب HTML، اكتشاف صف العناوين
+function normBc(v) { if (v === null || v === undefined) return ''; const s = String(v).trim(); return s.replace(/^0+/, '') || s; }
+const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+function findHeaderRow(rows, names) {
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const cells = (rows[i] || []).map(c => String(c).toLowerCase().trim());
+    if (names.some(n => cells.includes(n.toLowerCase()))) return i;
+  }
+  return 0;
+}
+function safeUrl(u) { return /^https?:\/\//i.test(u) ? u : ''; }
+
 async function processFiles() {
   document.getElementById('btn-process').textContent = '⏳ جاري المعالجة...';
   document.getElementById('btn-process').disabled = true;
@@ -139,14 +152,16 @@ async function processFiles() {
   try {
     // 1. قراءة ملف المنتجات وبناء قاموس
     const prodRows = await readExcel(files.products);
-    const pHeaders = prodRows[0];
+    const pHR = findHeaderRow(prodRows, ['Barcode', 'باركود']);
+    const pHeaders = prodRows[pHR] || [];
     const pColBar = findCol(pHeaders, ['Barcode', 'باركود']);
     const pColImg = findCol(pHeaders, ['Image 1', 'Image_1', 'الصورة 1', 'Image1']);
     const pColName = findCol(pHeaders, ['Product Name', 'اسم المنتج', 'Product_Name']);
 
+    if (pColBar === -1) throw new Error('ملف المنتجات: لم يتم العثور على عمود Barcode');
     const productsMap = new Map();
-    for (let i = 1; i < prodRows.length; i++) {
-      const bc = String(prodRows[i][pColBar] || '').trim();
+    for (let i = pHR + 1; i < prodRows.length; i++) {
+      const bc = normBc(prodRows[i][pColBar]);
       if (!bc) continue;
       productsMap.set(bc, {
         image: pColImg !== -1 ? String(prodRows[i][pColImg] || '').trim() : '',
@@ -156,22 +171,25 @@ async function processFiles() {
 
     // 2. قراءة ملف المبيعات ومطابقتها
     const salesRows = await readExcel(files.sales);
-    const sHeaders = salesRows[0];
+    const sHR = findHeaderRow(salesRows, ['Barcode', 'باركود']);
+    const sHeaders = salesRows[sHR] || [];
     const sColBar = findCol(sHeaders, ['Barcode', 'باركود']);
     const sColOrder = findCol(sHeaders, ['Order Number', 'رقم الطلب', 'OrderNumber']);
     const sColQty = findCol(sHeaders, ['Quantity', 'الكمية', 'Qty']);
     const sColAmt = findCol(sHeaders, ['Total Amount', 'إجمالي المبلغ', 'Invoice Amount']);
 
+    if (sColBar === -1) throw new Error('ملف المبيعات: لم يتم العثور على عمود Barcode');
     matchedData = [];
-    for (let i = 1; i < salesRows.length; i++) {
-      const bc = String(salesRows[i][sColBar] || '').trim();
+    for (let i = sHR + 1; i < salesRows.length; i++) {
+      const rawBc = String(salesRows[i][sColBar] ?? '').trim();
+      const bc = normBc(rawBc);
       if (!bc) continue;
 
       const prodInfo = productsMap.get(bc) || { image: '', name: 'غير موجود في ملف المنتجات' };
-      const hasImage = prodInfo.image && prodInfo.image.toLowerCase().startsWith('http');
+      const hasImage = !!safeUrl(prodInfo.image);
 
       matchedData.push({
-        barcode: bc,
+        barcode: rawBc,
         productName: prodInfo.name,
         imageUrl: hasImage ? prodInfo.image : '',
         orderNumber: sColOrder !== -1 ? String(salesRows[i][sColOrder] || '') : '',
@@ -205,16 +223,16 @@ function renderTable() {
 
   tbody.innerHTML = filteredData.slice(0, limit).map(row => {
     const imgHtml = row.imageUrl 
-      ? `<img src="${row.imageUrl}" class="product-img" onerror="this.outerHTML='<div class=\\'no-img\\'>لا توجد<br>صورة</div>'" loading="lazy">`
+      ? `<img src="${esc(row.imageUrl)}" class="product-img" onerror="this.outerHTML='<div class=\\'no-img\\'>لا توجد<br>صورة</div>'" loading="lazy">`
       : `<div class="no-img">لا توجد<br>صورة</div>`;
     
     return `<tr>
       <td style="text-align:center;">${imgHtml}</td>
-      <td style="direction:ltr;text-align:left;font-family:monospace;">${row.barcode}</td>
-      <td>${row.productName}</td>
-      <td style="direction:ltr;text-align:left;font-family:monospace;">${row.orderNumber}</td>
-      <td style="text-align:center;">${row.quantity}</td>
-      <td style="text-align:center;font-weight:600;">${row.totalAmount}</td>
+      <td style="direction:ltr;text-align:left;font-family:monospace;">${esc(row.barcode)}</td>
+      <td>${esc(row.productName)}</td>
+      <td style="direction:ltr;text-align:left;font-family:monospace;">${esc(row.orderNumber)}</td>
+      <td style="text-align:center;">${esc(row.quantity)}</td>
+      <td style="text-align:center;font-weight:600;">${esc(row.totalAmount)}</td>
       <td style="text-align:center;">
         <span style="padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600;${row.imageStatus === 'متوفرة' ? 'background:#dcfce7;color:#166534' : 'background:#fee2e2;color:#991b1b'}">
           ${row.imageStatus}
