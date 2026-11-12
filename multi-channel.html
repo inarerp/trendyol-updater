@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تقسيم المخزون على المنصات</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<style>
+  body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f0f2f5}
+  .topnav{text-align:center;margin-bottom:12px;font-size:13px}
+  .topnav a{color:#4f46e5;font-weight:600;text-decoration:none;margin:0 6px}
+  .topnav .current{color:#64748b;font-weight:700;margin:0 6px}
+  .card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .card h2{font-size:16px;font-weight:700;color:#1e293b;margin-bottom:12px}
+  .grid-files{display:grid;grid-template-columns:110px repeat(3,minmax(0,1fr));gap:8px;align-items:stretch}
+  .grid-files .lbl{font-weight:700;font-size:13px;display:flex;align-items:center}
+  .grid-files .colh{font-size:12px;color:#64748b;text-align:center;font-weight:600}
+  .dropzone{border:2px dashed #d1d5db;border-radius:10px;padding:10px;text-align:center;cursor:pointer;transition:.2s;font-size:12px;color:#475569;min-height:58px;display:flex;flex-direction:column;justify-content:center}
+  .dropzone:hover{border-color:#6366f1;background:#f5f3ff}
+  .dropzone.loaded{border-color:#10b981;background:#ecfdf5;color:#065f46}
+  .dropzone .fn{font-size:11px;margin-top:3px;word-break:break-all}
+  .opt{font-size:10px;color:#94a3b8}
+  .btn{padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn-primary{background:#6366f1;color:#fff}.btn-primary:hover{background:#4f46e5}
+  .btn-success{background:#10b981;color:#fff}.btn-success:hover{background:#059669}
+  .btn-outline{background:#fff;border:1px solid #d1d5db;color:#374151}.btn-outline:hover{background:#f9fafb}
+  .btn-sm{padding:5px 10px;font-size:12px}
+  .btn-active{background:#6366f1 !important;color:#fff !important;border-color:#6366f1 !important}
+  .stat-box{text-align:center;padding:12px;border-radius:8px;background:#f8fafc}
+  .stat-num{font-size:20px;font-weight:700}
+  .stat-lbl{font-size:11px;color:#6b7280;margin-top:2px}
+  .set-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:13px}
+  .set-row label{font-weight:600;color:#374151}
+  .set-row input[type=number]{width:64px;border:1px solid #d1d5db;border-radius:6px;padding:5px 8px}
+  .set-row textarea{border:1px solid #d1d5db;border-radius:6px;padding:6px 8px;font-size:12px;direction:ltr;width:260px;height:38px}
+  .st-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .st-box{border:1px solid #e5e7eb;border-radius:8px;padding:8px;max-height:200px;overflow-y:auto}
+  .st-box h3{font-size:12px;font-weight:700;margin-bottom:6px}
+  .st-item{display:flex;align-items:center;gap:6px;font-size:11px;padding:2px 0}
+  .st-item input{accent-color:#10b981}
+  .st-item.off span{color:#b91c1c;text-decoration:line-through}
+  .badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap}
+  .b-ok{background:#dcfce7;color:#166534}.b-zero{background:#fee2e2;color:#991b1b}
+  .b-keep{background:#f1f5f9;color:#475569}.b-hold{background:#fce7f3;color:#9d174d}
+  .b-am{background:#ede9fe;color:#5b21b6}.b-rev{background:#fef3c7;color:#92400e}
+  .b-T{background:#ffedd5;color:#9a3412}.b-C{background:#dbeafe;color:#1e40af}.b-S{background:#fce7f3;color:#9d174d}
+  .table-wrap{max-height:520px;overflow:auto;border:1px solid #e5e7eb;border-radius:8px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{background:#f8fafc;padding:8px;text-align:right;border-bottom:2px solid #e2e8f0;position:sticky;top:0;font-weight:600;white-space:nowrap}
+  td{padding:6px 8px;border-bottom:1px solid #f1f5f9}
+  td.ltr{direction:ltr;text-align:left;font-family:monospace;font-size:11px}
+  tr:hover{background:#f8fafc}
+  .hidden{display:none}
+  .warn-box{margin-top:10px;padding:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:12px;color:#9a3412}
+  .info-box{margin-top:10px;padding:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px;color:#1e40af}
+  .views{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:12px}
+  .filters select,.filters input[type=text]{border:1px solid #d1d5db;border-radius:6px;padding:5px 8px;font-size:12px}
+  .filters input[type=text]{min-width:220px}
+</style>
+</head>
+<body>
+<div class="max-w-7xl mx-auto p-4">
+  <div class="topnav">
+    <a href="inventory-update.html">📦 تحديث المخزون</a> | <span class="current">🔀 تقسيم المنصات</span> | <a href="sales-check.html">🛒 فحص المبيعات</a> | <a href="supplier-sync.html">🏬 مزامنة مورد</a> | <a href="index.html">🏠 الرئيسية</a>
+  </div>
+  <h1 class="text-2xl font-bold text-center mb-1">🔀 تقسيم مخزون أودو على ترينديول وكارفور وشي إن</h1>
+  <p class="text-center text-sm text-gray-500 mb-4">كل المعالجة تتم على جهازك — لا تُرفع الملفات لأي خادم</p>
+
+  <!-- 1. الملفات -->
+  <div class="card">
+    <h2>1. الملفات</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+      <div class="dropzone" data-slot="odoo"><b>مخزون أودو</b><span class="opt">إلزامي — باركود، الكمية في اليد</span><div class="fn"></div></div>
+      <div class="dropzone" data-slot="master" data-multi="1"><b>الماستر</b><span class="opt">إلزامي — ملف واحد بشيتات (ترينديول / كارفور / شي إن) أو عدة ملفات</span><div class="fn"></div></div>
+      <div class="dropzone" data-slot="history" data-multi="1"><b>المبيعات التاريخية</b><span class="opt">اختياري — ملف مجمع (الباركود، القناة، القطع) أو ملفات طلبات المنصات</span><div class="fn"></div></div>
+    </div>
+    <div class="grid-files">
+      <div></div><div class="colh">المخزون الحالي على المنصة (إلزامي)</div><div class="colh">الطلبات غير المخصومة من أودو (اختياري)</div><div class="colh"></div>
+      <div class="lbl"><span class="badge b-T">ترينديول</span></div>
+      <div class="dropzone" data-slot="stockT"><span>تصدير منتجات ترينديول</span><span class="opt">إلزامي لو الماستر فيه شيت ترينديول</span><div class="fn"></div></div>
+      <div class="dropzone" data-slot="ordersT" data-multi="1"><span>طلبات ترينديول</span><div class="fn"></div></div><div></div>
+      <div class="lbl"><span class="badge b-C">كارفور</span></div>
+      <div class="dropzone" data-slot="stockC"><span>Inventory Data كارفور</span><span class="opt">إلزامي لو الماستر فيه شيت كارفور</span><div class="fn"></div></div>
+      <div class="dropzone" data-slot="ordersC" data-multi="1"><span>طلبات كارفور</span><div class="fn"></div></div><div></div>
+      <div class="lbl"><span class="badge b-S">شي إن</span></div>
+      <div class="dropzone" data-slot="stockS"><span>تصدير منتجات شي إن</span><span class="opt">إلزامي لو الماستر فيه شيت شي إن</span><div class="fn"></div></div>
+      <div class="dropzone" data-slot="ordersS" data-multi="1"><span>طلبات شي إن</span><div class="fn"></div></div><div></div>
+    </div>
+    <input type="file" id="file-input" class="hidden" accept=".xlsx,.xls,.csv">
+    <div class="flex gap-2 mt-4 flex-wrap">
+      <button class="btn btn-primary" id="btn-read" disabled onclick="readAll()">📖 قراءة الملفات وحساب التوزيع</button>
+      <button class="btn btn-outline btn-sm" onclick="downloadMasterTemplate()">⬇️ قالب ماستر فارغ (3 شيتات)</button>
+      <button class="btn btn-outline btn-sm" onclick="clearFiles()">🗑️ مسح الملفات</button>
+    </div>
+    <div id="read-summary" class="info-box hidden"></div>
+    <div id="warnings" class="warn-box hidden"></div>
+  </div>
+
+  <!-- 2. الإعدادات -->
+  <div class="card hidden" id="card-settings">
+    <h2>2. قاعدة التقسيم</h2>
+    <div class="set-row">
+      <label>ترينديول فقط حتى</label><input type="number" id="set-threshold" min="0" step="1" value="3"><span>قطع</span>
+      <span class="opt">(لو الصنف غير معروض على ترينديول يُقسم على المنصات المتاحة)</span>
+    </div>
+    <div class="set-row">
+      <label>المبيعات التاريخية: آخر</label><input type="number" id="set-months" min="1" step="1" value="3"><span>شهور</span>
+      <span class="opt">تُطبق على عمود الشهر في الملف المجمع وتاريخ الطلب في ملفات الطلبات — يحتاج إعادة القراءة</span>
+    </div>
+    <div class="set-row">
+      <label>من بعدها التقسيم</label>
+      <button class="btn btn-outline btn-sm mode-btn" data-mode="sales">حسب المبيعات</button>
+      <button class="btn btn-outline btn-sm mode-btn" data-mode="equal">بالتساوي</button>
+      <button class="btn btn-outline btn-sm mode-btn" data-mode="trendyol">أولوية ترينديول</button>
+      <span class="opt" id="mode-help"></span>
+    </div>
+    <div class="set-row">
+      <label>مستثنى من التقسيم</label><textarea id="set-excluded" placeholder="باركود في كل سطر"></textarea>
+      <span class="opt">كل عرض لهذه الباركودات يأخذ الرصيد كاملاً (مثل الكوب الخام)</span>
+    </div>
+    <div class="set-row"><label>الحالات التي تأخذ مخزوناً</label><span class="opt">ألغِ التحديد لاستبعاد حالة — العروض المستبعدة لا تُلمس في ملف الرفع</span></div>
+    <div class="st-grid" id="status-grid"></div>
+  </div>
+
+  <!-- 3. النتائج -->
+  <div class="card hidden" id="card-results">
+    <h2>3. النتيجة</h2>
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4" id="stats"></div>
+    <div class="views" id="views">
+      <button class="btn btn-outline btn-sm" data-view="products">حسب الصنف</button>
+      <button class="btn btn-outline btn-sm" data-view="listings">حسب العرض</button>
+      <button class="btn btn-outline btn-sm" data-view="noodoo">غير موجود في أودو</button>
+      <button class="btn btn-outline btn-sm" data-view="nomaster">غير موجود في الماستر</button>
+      <button class="btn btn-outline btn-sm" data-view="lost">قطع لم تُوزَّع</button>
+      <button class="btn btn-outline btn-sm" data-view="review">غير مؤكد الربط</button>
+    </div>
+    <div class="filters">
+      <select id="flt-ch"><option value="">كل المنصات</option><option value="T">ترينديول</option><option value="C">كارفور</option><option value="S">شي إن</option></select>
+      <select id="flt-dec"><option value="">كل القرارات</option><option value="alloc">موزَّع</option><option value="zero">تصفير</option><option value="keep">لا يُلمس</option></select>
+      <select id="flt-status"><option value="">كل الحالات</option></select>
+      <label><input type="checkbox" id="flt-changed"> التغييرات فقط</label>
+      <input type="text" id="flt-search" placeholder="باركود، SKU، اسم، مورد...">
+      <span id="tbl-info" class="opt"></span>
+    </div>
+    <div class="table-wrap"><table><thead id="tbl-head"></thead><tbody id="tbl-body"></tbody></table></div>
+  </div>
+
+  <!-- 4. التصدير -->
+  <div class="card hidden" id="card-export">
+    <h2>4. التصدير</h2>
+    <div class="flex gap-2 flex-wrap">
+      <button class="btn btn-success" onclick="exportTrendyol()">⬇️ رفع ترينديول</button>
+      <button class="btn btn-success" onclick="exportCarrefour()">⬇️ رفع كارفور (قالب PRICE_AND_STOCK_UPDATE)</button>
+      <button class="btn btn-success" onclick="exportShein()">⬇️ رفع شي إن (قالب تعديل المخزون)</button>
+      <button class="btn btn-outline" onclick="exportReport()">📊 تقرير التوزيع الكامل</button>
+      <button class="btn btn-outline" onclick="exportNoOdoo()">📋 غير موجود في أودو (للتجهيز)</button>
+    </div>
+    <div class="info-box">ملفات الرفع تحتوي فقط العروض التي تغيرت كميتها. العروض في حالة مستبعدة أو Hold أو ربط غير مؤكد لا تُلمس — الأداة تعمل على الربط «مؤكد» فقط.</div>
+  </div>
+</div>
+
+<script>
+// ===================== أدوات عامة =====================
+const CH = ['T','C','S'];
+const CH_NAME = { T:'ترينديول', C:'كارفور', S:'شي إن' };
+const isBlank = v => v === '' || v === null || v === undefined || String(v).trim() === '';
+const clean = v => (v === null || v === undefined) ? '' : String(v).trim();
+const norm = bc => { const s = clean(bc); return s.replace(/^0+/, '') || s; };
+const lower = v => clean(v).toLowerCase().replace(/\s+/g, ' ');
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toNum(v){
+  if (isBlank(v)) return 0;
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  const n = parseFloat(String(v).replace(/,/g, '').trim());
+  return isNaN(n) ? 0 : n;
+}
+const toInt = v => Math.trunc(toNum(v));
+const isPackage = v => !!v && String(v).includes(':');
+function parsePackage(v){
+  const out = [];
+  String(v).split(',').forEach(p => {
+    const [bc, q] = p.split(':');
+    if (bc && bc.trim()) out.push({ bc: norm(bc), qty: Math.max(1, parseInt(String(q || '').trim()) || 1) });
+  });
+  return out;
+}
+function refComps(ref, pcs){
+  ref = clean(ref);
+  if (!ref) return [];
+  if (isPackage(ref)) return parsePackage(ref);
+  return [{ bc: norm(ref), qty: Math.max(1, toInt(pcs) || 1) }];
+}
+// يحوّل تاريخاً (رقم Excel، أو 2026-10-25، أو 11-Nov-26، أو 2026-أكتوبر-25) إلى yyyy-mm، أو '' لو غير معروف
+const AR_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const EN_MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+function toYM(v){
+  if (isBlank(v)) return '';
+  if (typeof v === 'number' && v > 20000 && v < 80000){ const d = new Date(Math.round((v - 25569) * 86400000)); return d.toISOString().slice(0, 7); }
+  const s = clean(v);
+  let m = s.match(/^(\d{4})-(\d{1,2})/); if (m) return m[1] + '-' + m[2].padStart(2, '0');
+  m = s.match(/^(\d{4})-([^-\s]+)-/); if (m){ const i = AR_MONTHS.indexOf(m[2]); if (i >= 0) return m[1] + '-' + String(i + 1).padStart(2, '0'); }
+  m = s.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})/); if (m){ const i = EN_MONTHS.indexOf(m[2].toLowerCase()); const y = m[3].length === 2 ? '20' + m[3] : m[3]; if (i >= 0) return y + '-' + String(i + 1).padStart(2, '0'); }
+  m = s.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})/); if (m) return m[3] + '-' + m[2].padStart(2, '0');
+  return '';
+}
+const isTrue = v => ['true','yes','نعم','1'].includes(lower(v));
+const AM_NEG = ['','لا','no','-','0','false','none','n/a','لا يوجد'];
+const isAmStop = v => !AM_NEG.includes(lower(v));
+
+function readRows(file, sheetName){
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array', raw:true });
+        if (sheetName === '*') {
+          res(wb.SheetNames.map(n => ({ name:n, rows: XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, defval:'' }) })));
+        } else {
+          res(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:'' }));
+        }
+      } catch (err) { rej(new Error(file.name + ': ' + err.message)); }
+    };
+    r.onerror = () => rej(new Error('فشل قراءة ' + file.name));
+    r.readAsArrayBuffer(file);
+  });
+}
+
+// يبحث عن صف عناوين يحتوي الأعمدة الإلزامية (مطابقة دقيقة)
+function detect(rows, spec){
+  for (let i = 0; i < Math.min(rows.length, 20); i++){
+    const cells = (rows[i] || []).map(lower);
+    const map = {}; let ok = true;
+    for (const key in spec){
+      let col = -1;
+      for (const a of spec[key].a){ const ci = cells.indexOf(a); if (ci >= 0){ col = ci; break; } }
+      if (col < 0 && spec[key].p){ col = cells.findIndex(c => spec[key].p.some(p => c.startsWith(p))); }
+      if (col >= 0) map[key] = col;
+      else if (spec[key].r){ ok = false; break; }
+    }
+    if (ok) return { headerRow: i, map };
+  }
+  return null;
+}
+const cellOf = (r, d, k) => d.map[k] !== undefined ? r[d.map[k]] : '';
+
+// ===================== مواصفات الملفات =====================
+const SPEC = {
+  odoo: { barcode:{a:['باركود','barcode','default_code','internal reference'],r:1}, qty:{a:['الكمية في اليد','quantity on hand','quantity','qty_available'],r:1}, name:{a:['اسم العرض','display_name','product name','name']} },
+  masterCommon: {
+    odoo:{a:['barcode odoo','باركود أودو','odoo barcode']}, pieces:{a:['عدد القطع','pack qty']},
+    hold:{a:['hold stock','hold']}, am:{a:['مدير الحساب','account manager']},
+    supplier:{a:['المورد (لغير الموجود في أودو)','المورد','supplier']}, conf:{a:['الثقة']}
+  },
+  masterId: {
+    T: { id:{a:['barcode','trendyol barcode'],r:1}, name:{a:['product name']}, stock:{a:['stock (trendyol)']}, status:{a:['status']}, price:{a:['original (list) price']}, sale:{a:['trendyol sale price (vat included)','trendyol sale price (including vat)']} },
+    C: { id:{a:['offer sku'],r:1}, name:{a:['product name (ar)','product name (en)']}, stock:{a:['total qty كارفور','total qty']}, status:{a:['status كارفور','status']} },
+    S: { id:{a:['sku شي إن','shein-sku','shein sku','sku'],r:1}, name:{a:['اسم المنتج']}, stock:{a:['المخزون الحالي شي إن','المخزون الحالي']}, status:{a:['حالة الإعلان'],p:['حالة الإعلان']} }
+  },
+  stockT: { id:{a:['barcode'],r:1}, stock:{a:['stock'],r:1}, name:{a:['product name']}, status:{a:['status']}, desc:{a:['status description']}, price:{a:['original (list) price']}, sale:{a:['trendyol sale price (including vat)','trendyol sale price (vat included)']} },
+  stockC: { id:{a:['offer sku'],r:1}, stock:{a:['total qty','quantity'],r:1}, price:{a:['price (sar)','price']}, status:{a:['status']}, name:{a:['product name (ar)','product name (en)']},
+            disc:{a:['discount price (sar)','discount price']}, ds:{a:['discount start date']}, de:{a:['discount end date']} },
+  stockS: { id:{a:['sku'],r:1}, stock:{a:['المخزون الحالي'],r:1}, status:{a:[],p:['حالة الإعلان']}, name:{a:['اسم المنتج الافتراضي(en)']} },
+  ordT: { id:{a:['barcode'],r:1}, qty:{a:['quantity'],r:1}, status:{a:['order status']}, chk:{a:['package no','order number'],r:1}, alt:{a:['stock code']}, date:{a:['order date']} },
+  ordC: { id:{a:['offer sku'],r:1}, qty:{a:['quantity'],r:1}, status:{a:['order status']}, chk:{a:['consignment id','order total'],r:1}, alt:{a:['ean']}, date:{a:['creation date']} },
+  ordS: { id:{a:['shein-sku'],r:1}, qty:{a:['عدد الأصناف المباعة']}, status:{a:['حالة الطلب']}, alt:{a:['رمز المنتج لدى البائع','رقم الصنف']}, date:{a:['وقت إنشاء الطلب']} },
+  histAll: { bc:{a:['الباركود','barcode'],r:1}, ch:{a:['القناة','channel'],r:1}, qty:{a:['القطع','pieces','الكمية'],r:1}, month:{a:['الشهر','month']} }
+};
+const SKIP_ORDER = /cancel|ملغ|مرفوض|reject|مسترد|refund|return|مرتجع|إرجاع/i;
+const chFromName = s => { const t = lower(s); if (/ترين?ديول|trendyol/.test(t)) return 'T'; if (/كارفور|carrefour/.test(t)) return 'C'; if (/شي ?إن|شي ?ان|shein/.test(t)) return 'S'; return ''; };
+
+// الحالات الافتراضية المستبعدة من التوزيع
+function defaultAllowed(ch, st){
+  const s = lower(st);
+  if (ch === 'T') return s === '' || s.startsWith('you need to enter stock') || s === 'low sale pricing' || s === 'unsupplied product' || s === 'active' || s === 'on sale';
+  if (ch === 'C') return s !== 'rejected';
+  if (ch === 'S') return !s.includes('سحب');
+  return true;
+}
+
+// ===================== الحالة =====================
+const S = {
+  files: { odoo:[], master:[], history:[], stockT:[], stockC:[], stockS:[], ordersT:[], ordersC:[], ordersS:[] },
+  data: null, view: 'products', busy: false,
+  settings: { threshold:3, mode:'sales', histMonths:3, excluded:['6970640620521'], statusOff:{T:[],C:[],S:[]} }
+};
+const SETTINGS_KEY = 'mc-split-settings-v1';
+function loadSettings(){
+  try { const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null'); if (v && typeof v === 'object') Object.assign(S.settings, v); } catch {}
+  S.settings.statusOff = Object.assign({T:[],C:[],S:[]}, S.settings.statusOff || {});
+}
+function saveSettings(){ try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(S.settings)); } catch {} }
+
+// ===================== رفع الملفات =====================
+let pendingSlot = null;
+document.querySelectorAll('.dropzone').forEach(dz => {
+  dz.addEventListener('click', () => {
+    pendingSlot = dz.dataset.slot;
+    const inp = document.getElementById('file-input');
+    inp.multiple = !!dz.dataset.multi; inp.value = ''; inp.click();
+  });
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = '#6366f1'; });
+  dz.addEventListener('dragleave', () => { dz.style.borderColor = ''; });
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.style.borderColor = '';
+    setFiles(dz.dataset.slot, Array.from(e.dataTransfer.files), !!dz.dataset.multi);
+  });
+});
+document.getElementById('file-input').addEventListener('change', e => {
+  if (pendingSlot) setFiles(pendingSlot, Array.from(e.target.files), e.target.multiple);
+});
+function setFiles(slot, files, multi){
+  if (!files.length) return;
+  S.files[slot] = multi ? S.files[slot].concat(files) : [files[0]];
+  const dz = document.querySelector(`.dropzone[data-slot="${slot}"]`);
+  dz.classList.add('loaded');
+  dz.querySelector('.fn').textContent = '✅ ' + S.files[slot].map(f => f.name).join(' ، ');
+  checkReady();
+}
+function clearFiles(){
+  Object.keys(S.files).forEach(k => S.files[k] = []);
+  // ✅ [M5] مسح النتائج القديمة حتى لا يُصدَّر من بيانات سابقة
+  S.data = null;
+  ['card-settings','card-results','card-export'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  ['read-summary','warnings'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.querySelectorAll('.dropzone').forEach(dz => { dz.classList.remove('loaded'); dz.querySelector('.fn').textContent = ''; });
+  checkReady();
+}
+function checkReady(){
+  document.getElementById('btn-read').disabled = S.busy || !(S.files.odoo.length && S.files.master.length);
+}
+
+// ===================== القراءة =====================
+async function readAll(){
+  if (S.busy) return;
+  S.busy = true; checkReady();
+  const btn = document.getElementById('btn-read'); const oldTxt = btn.textContent; btn.textContent = '⏳ جاري القراءة...';
+  const W = [];
+  try {
+    S.data = await buildData(W);
+    showReadSummary(W);
+    renderStatusGrid();
+    ['card-settings','card-results','card-export'].forEach(id => document.getElementById(id).classList.remove('hidden'));
+    compute();
+  } catch (err) { alert('خطأ: ' + err.message); console.error(err); }
+  finally { S.busy = false; btn.textContent = oldTxt; checkReady(); }
+}
+
+async function buildData(W){
+  // ---- أودو (الباركود المكرر تُجمع كمياته)
+  const odoo = new Map();
+  for (const f of S.files.odoo){
+    const rows = await readRows(f);
+    const d = detect(rows, SPEC.odoo);
+    if (!d) throw new Error(`ملف أودو ${f.name}: مش لاقي عمود الباركود أو الكمية في اليد`);
+    for (const r of rows.slice(d.headerRow + 1)){
+      const k = norm(cellOf(r, d, 'barcode')); if (!k) continue;
+      const ex = odoo.get(k);
+      if (ex) ex.qty += toNum(cellOf(r, d, 'qty'));
+      else odoo.set(k, { qty: toNum(cellOf(r, d, 'qty')), name: clean(cellOf(r, d, 'name')) });
+    }
+  }
+
+  // ---- الماستر: كل شيت = منصة (من اسم الشيت أو من أعمدته)
+  const listings = []; const byKey = new Map();
+  const masterChannels = new Set(); let masterDup = 0;
+  for (const f of S.files.master){
+    const sheets = await readRows(f, '*');
+    for (const sh of sheets){
+      if (/مراجعة|ملخص|summary|review|instruction|تعليمات/i.test(sh.name)) continue; // شيتات مساعدة
+      let ch = chFromName(sh.name), d = null;
+      const tryCh = ch ? [ch] : (chFromName(f.name) ? [chFromName(f.name)] : ['C','S','T']);
+      for (const c of tryCh){
+        d = detect(sh.rows, Object.assign({}, SPEC.masterId[c], SPEC.masterCommon));
+        if (d){ ch = c; break; }
+      }
+      if (!d){ if (sh.rows.length > 1) W.push(`الماستر ${f.name} / شيت «${sh.name}»: لم يُتعرف على المنصة أو عمود المعرّف — تم تجاهله`); continue; }
+      for (const r of sh.rows.slice(d.headerRow + 1)){
+        const id = clean(cellOf(r, d, 'id')); if (!id) continue;
+        const key = ch + '|' + norm(id);
+        if (byKey.has(key)){ masterDup++; continue; }
+        const odooRef = clean(cellOf(r, d, 'odoo'));
+        const L = {
+          ch, id, nid: norm(id), inMaster: true, onChannel: true,
+          ref: odooRef, comps: refComps(odooRef, cellOf(r, d, 'pieces')),
+          hold: isTrue(cellOf(r, d, 'hold')), amRaw: clean(cellOf(r, d, 'am')),
+          supplier: clean(cellOf(r, d, 'supplier')), conf: clean(cellOf(r, d, 'conf')),
+          name: clean(cellOf(r, d, 'name')), status: clean(cellOf(r, d, 'status')),
+          cur: toInt(cellOf(r, d, 'stock')), price: toNum(cellOf(r, d, 'price')), sale: toNum(cellOf(r, d, 'sale'))
+        };
+        L.managerStop = isAmStop(L.amRaw);
+        listings.push(L); byKey.set(key, L); masterChannels.add(ch);
+      }
+    }
+  }
+  if (!listings.length) throw new Error('الماستر: لم تُقرأ أي عروض. تأكد من أسماء الشيتات (ترينديول / كارفور / شي إن) وعمود المعرّف (Barcode / Offer SKU / SKU شي إن).');
+  if (masterDup) W.push(`الماستر: ${masterDup} معرّف مكرر في نفس المنصة — تم أخذ أول صف`);
+  // ✅ [C2] ملف مخزون المنصة إلزامي لكل منصة في الماستر (بدونه تُقارن الكمية الجديدة بكمية قديمة)
+  const missing = CH.filter(ch => masterChannels.has(ch) && !S.files['stock' + ch].length);
+  if (missing.length) throw new Error('ارفع ملف المخزون الحالي لـ: ' + missing.map(c => CH_NAME[c]).join('، ') + ' — الماستر فيه عروض لها، وملف المنصة إلزامي.');
+
+  // ---- مخزون المنصات الحالي: يحدّث الكمية والحالة والسعر، ويكشف العروض غير الموجودة في الماستر
+  const stockLoaded = { T:false, C:false, S:false };
+  for (const ch of CH){
+    for (const f of S.files['stock' + ch]){
+      const rows = await readRows(f);
+      const d = detect(rows, SPEC['stock' + ch]);
+      if (!d) throw new Error(`ملف مخزون ${CH_NAME[ch]} ${f.name}: الأعمدة غير متوقعة — تأكد أنه ملف المخزون الصحيح للمنصة`);
+      stockLoaded[ch] = true;
+      const seen = new Set();
+      for (const r of rows.slice(d.headerRow + 1)){
+        const id = clean(cellOf(r, d, 'id')); if (!id) continue;
+        const key = ch + '|' + norm(id); seen.add(key);
+        let st = clean(cellOf(r, d, 'status'));
+        if (ch === 'T'){ const desc = clean(cellOf(r, d, 'desc')); if (desc) st = desc; else if (lower(st) === 'active') st = ''; }
+        let L = byKey.get(key);
+        if (!L){
+          L = { ch, id, nid: norm(id), inMaster:false, onChannel:true, ref:'', comps:[], hold:false, amRaw:'', managerStop:false, supplier:'', conf:'', name:'', status:'', cur:0, price:0, sale:0 };
+          listings.push(L); byKey.set(key, L);
+        }
+        L.cur = toInt(cellOf(r, d, 'stock'));
+        L.status = st;
+        if (d.map.price !== undefined) L.price = toNum(cellOf(r, d, 'price'));
+        if (d.map.sale !== undefined) L.sale = toNum(cellOf(r, d, 'sale'));
+        if (!L.name) L.name = clean(cellOf(r, d, 'name'));
+        // ✅ [H1] الخصم الحالي في كارفور يُعاد إرساله كما هو
+        if (ch === 'C'){ L.disc = cellOf(r, d, 'disc'); L.ds = cellOf(r, d, 'ds'); L.de = cellOf(r, d, 'de'); }
+      }
+      // عرض في الماستر غير موجود في ملف المنصة = غير مرفوع عليها
+      listings.forEach(L => { if (L.ch === ch && L.inMaster && !seen.has(ch + '|' + L.nid)) L.onChannel = false; });
+    }
+  }
+
+  // ---- ملفات الطلبات والمبيعات
+  // ✅ [H2] لو العرض غير مربوط في الماستر: يُجرب المعرّف البديل من الطلب ثم المعرّف نفسه كباركود أودو
+  const lineToBarcodes = (ch, id, qty, target, alt) => {
+    const L = byKey.get(ch + '|' + norm(id));
+    if (L && L.comps.length && L.conf !== 'راجِع'){ L.comps.forEach(c => target(c.bc, qty * c.qty, ch)); return true; }
+    for (const k of [alt, id]) if (k && !isPackage(k) && odoo.has(norm(k))){ target(norm(k), qty, ch); return true; }
+    return false;
+  };
+  // ✅ [H3] بداية فترة المبيعات التاريخية
+  const cutoff = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - Math.max(1, S.settings.histMonths || 3)); return d.toISOString().slice(0, 7); })();
+  async function parseOrderFiles(files, onLine, allowCombined, label, useCutoff){
+    let unmapped = 0, skipped = 0, lines = 0, old = 0;
+    for (const f of files){
+      const rows = await readRows(f);
+      if (allowCombined){
+        const dh = detect(rows, SPEC.histAll);
+        if (dh){
+          for (const r of rows.slice(dh.headerRow + 1)){
+            const ch = chFromName(cellOf(r, dh, 'ch')); if (!ch) continue;
+            const q = toNum(cellOf(r, dh, 'qty')); if (q <= 0) continue;
+            if (useCutoff){ const ym = toYM(cellOf(r, dh, 'month')); if (ym && ym < cutoff){ old++; continue; } }
+            onLine.direct(norm(cellOf(r, dh, 'bc')), q, ch); lines++;
+          }
+          continue;
+        }
+      }
+      let ch = '', d = null;
+      for (const c of CH){ d = detect(rows, SPEC['ord' + c]); if (d){ ch = c; break; } }
+      if (!d){ W.push(`${label} ${f.name}: لم يُتعرف على صيغة الملف — تم تجاهله`); continue; }
+      for (const r of rows.slice(d.headerRow + 1)){
+        const id = clean(cellOf(r, d, 'id')); if (!id) continue;
+        if (SKIP_ORDER.test(clean(cellOf(r, d, 'status')))){ skipped++; continue; }
+        const qc = cellOf(r, d, 'qty');
+        const q = isBlank(qc) ? 1 : toInt(qc);
+        if (q <= 0){ skipped++; continue; }
+        if (useCutoff){ const ym = toYM(cellOf(r, d, 'date')); if (ym && ym < cutoff){ old++; continue; } }
+        lines++;
+        if (!lineToBarcodes(ch, id, q, onLine.mapped, clean(cellOf(r, d, 'alt')))) unmapped++;
+      }
+    }
+    return { unmapped, skipped, lines, old };
+  }
+  const pend = new Map();
+  const pendRes = { lines:0, unmapped:0, skipped:0 };
+  for (const ch of CH){
+    const r = await parseOrderFiles(S.files['orders' + ch], { mapped: (bc, q) => pend.set(bc, (pend.get(bc) || 0) + q) }, false, 'طلبات');
+    pendRes.lines += r.lines; pendRes.unmapped += r.unmapped; pendRes.skipped += r.skipped;
+  }
+  if (pendRes.unmapped) W.push(`الطلبات: ${pendRes.unmapped} سطر لعرض غير مربوط بأودو في الماستر — لم يُخصم`);
+  const hist = new Map(); // bc -> {T,C,S} قطع
+  const addH = (bc, q, ch) => { if (!bc) return; const h = hist.get(bc) || { T:0, C:0, S:0 }; h[ch] += q; hist.set(bc, h); };
+  const histRes = await parseOrderFiles(S.files.history, { mapped: addH, direct: addH }, true, 'المبيعات التاريخية', true);
+  if (histRes.unmapped) W.push(`المبيعات التاريخية: ${histRes.unmapped} سطر لعرض غير مربوط — لم يُحسب في الأوزان`);
+
+  // ---- الربط بأودو
+  listings.forEach(L => {
+    L.hasOdoo = L.comps.length > 0 && L.comps.every(c => odoo.has(c.bc));
+  });
+
+  return { odoo, listings, pend, pendRes, hist, histRes, cutoff, stockLoaded };
+}
+
+function showReadSummary(W){
+  const D = S.data;
+  const cnt = ch => D.listings.filter(l => l.ch === ch && l.inMaster).length;
+  const notM = ch => D.listings.filter(l => l.ch === ch && !l.inMaster).length;
+  const parts = CH.map(ch => `${CH_NAME[ch]}: ${cnt(ch).toLocaleString()} عرض${notM(ch) ? ` (+${notM(ch)} غير موجود في الماستر)` : ''}${D.stockLoaded[ch] ? '' : ' — بدون ملف مخزون'}`);
+  document.getElementById('read-summary').innerHTML =
+    `📖 أودو: ${D.odoo.size.toLocaleString()} صنف | ${parts.join(' | ')}<br>` +
+    `الطلبات المخصومة: ${D.pendRes.lines ? D.pendRes.lines + ' سطر' : 'لا يوجد'}${D.pendRes.skipped ? ` (تجاهل ${D.pendRes.skipped} ملغي/مرتجع)` : ''} | ` +
+    `المبيعات التاريخية: ${D.hist.size ? `${D.hist.size.toLocaleString()} صنف من ${D.cutoff} (${D.histRes.lines.toLocaleString()} سطر${D.histRes.old ? `، تجاهل ${D.histRes.old.toLocaleString()} أقدم` : ''})` : 'لا يوجد — التقسيم بالتساوي'}`;
+  const rv = D.listings.filter(l => l.inMaster && l.onChannel && isReview(l) && l.cur > 0);
+  if (rv.length) W.push(`${rv.length} عرض ربطه غير مؤكد ومعروض عليه ${rv.reduce((a, l) => a + l.cur, 0).toLocaleString()} وحدة — لا يُلمس ولا يُحجز له رصيد. أكّد ربطه في الماستر لتشمله الأداة (عرض «غير مؤكد الربط»)`);
+  document.getElementById('read-summary').classList.remove('hidden');
+  const w = document.getElementById('warnings');
+  if (W.length){ w.innerHTML = '⚠️ ' + W.map(esc).join('<br>⚠️ '); w.classList.remove('hidden'); } else w.classList.add('hidden');
+}
+
+// ===================== الإعدادات =====================
+function renderStatusGrid(){
+  const g = document.getElementById('status-grid');
+  g.innerHTML = CH.map(ch => {
+    const counts = new Map();
+    S.data.listings.forEach(l => { if (l.ch === ch && l.inMaster) counts.set(l.status, (counts.get(l.status) || 0) + 1); });
+    const items = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+    if (!items.length) return `<div class="st-box"><h3>${CH_NAME[ch]}</h3><div class="opt">لا يوجد</div></div>`;
+    return `<div class="st-box"><h3>${CH_NAME[ch]}</h3>` + items.map(([st, n]) => {
+      const on = isStatusOn(ch, st);
+      return `<label class="st-item${on ? '' : ' off'}"><input type="checkbox" data-ch="${ch}" data-st="${esc(st)}" ${on ? 'checked' : ''}><span>${esc(st || '(بدون حالة)')} — ${n.toLocaleString()}</span></label>`;
+    }).join('') + '</div>';
+  }).join('');
+  g.querySelectorAll('input').forEach(inp => inp.addEventListener('change', () => {
+    const ch = inp.dataset.ch, st = inp.dataset.st;
+    const off = new Set(S.settings.statusOff[ch]); const on = new Set(S.settings.statusOn?.[ch] || []);
+    if (inp.checked){ off.delete(st); on.add(st); } else { off.add(st); on.delete(st); }
+    S.settings.statusOff[ch] = Array.from(off);
+    S.settings.statusOn = S.settings.statusOn || {T:[],C:[],S:[]}; S.settings.statusOn[ch] = Array.from(on);
+    inp.parentElement.classList.toggle('off', !inp.checked);
+    saveSettings(); compute();
+  }));
+}
+function isStatusOn(ch, st){
+  if ((S.settings.statusOff[ch] || []).includes(st)) return false;
+  if ((S.settings.statusOn?.[ch] || []).includes(st)) return true;
+  return defaultAllowed(ch, st);
+}
+function initSettingsUI(){
+  loadSettings();
+  const th = document.getElementById('set-threshold'); th.value = S.settings.threshold;
+  // ✅ [M6] change بدل input حتى لا يُعاد الحساب على قيمة ناقصة أثناء الكتابة
+  th.addEventListener('change', () => { if (isBlank(th.value)) { th.value = S.settings.threshold; return; } S.settings.threshold = Math.max(0, toInt(th.value)); th.value = S.settings.threshold; saveSettings(); if (S.data) compute(); });
+  const hm = document.getElementById('set-months'); hm.value = S.settings.histMonths;
+  hm.addEventListener('change', () => { S.settings.histMonths = Math.max(1, toInt(hm.value) || 3); hm.value = S.settings.histMonths; saveSettings();
+    if (S.data && S.files.history.length) alert('فترة المبيعات تتغير بعد إعادة قراءة الملفات'); });
+  const ex = document.getElementById('set-excluded'); ex.value = S.settings.excluded.join('\n');
+  ex.addEventListener('change', () => { S.settings.excluded = ex.value.split(/[\s,،]+/).map(norm).filter(Boolean); saveSettings(); if (S.data) compute(); });
+  document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => { S.settings.mode = b.dataset.mode; saveSettings(); paintMode(); if (S.data) compute(); }));
+  paintMode();
+  document.querySelectorAll('#views button').forEach(b => b.addEventListener('click', () => { S.view = b.dataset.view; paintView(); renderTable(); }));
+  paintView();
+  let t = null;
+  ['flt-ch','flt-dec','flt-status','flt-changed'].forEach(id => document.getElementById(id).addEventListener('change', renderTable));
+  document.getElementById('flt-search').addEventListener('input', () => { clearTimeout(t); t = setTimeout(renderTable, 200); });
+}
+const MODE_HELP = {
+  sales: 'وحدة لكل منصة معروض عليها الصنف (قطعة، أو باكت لو عروضها باكتات)، والباقي بنسبة مبيعات كل منصة. بدون مبيعات للصنف: بالتساوي والباقي لترينديول',
+  equal: 'بالتساوي على المنصات المعروض عليها الصنف، والباقي من القسمة لترينديول',
+  trendyol: 'وحدة لكل منصة غير ترينديول، والباقي كله لترينديول'
+};
+function paintMode(){
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('btn-active', b.dataset.mode === S.settings.mode));
+  document.getElementById('mode-help').textContent = MODE_HELP[S.settings.mode];
+}
+function paintView(){ document.querySelectorAll('#views button').forEach(b => b.classList.toggle('btn-active', b.dataset.view === S.view)); }
+
+// ===================== الحساب =====================
+// نصيب كل منصة من صافي باركود واحد
+// mu = أصغر وحدة عرض في كل منصة لهذا الباركود (قطعة، أو باكت كامل لو كل عروضها باكتات)
+function splitChannels(net, P, w, mode, threshold, mu){
+  mu = mu || { T:1, C:1, S:1 };
+  const sh = { T:0, C:0, S:0 };
+  if (net <= 0 || !P.length) return { sh, rule: net <= 0 ? 'لا يوجد رصيد' : '' };
+  // ✅ [M1] حد «ترينديول فقط» يطبق فقط لو أصغر وحدة في ترينديول تكفي، وإلا يُقسم على المنصات التي تكفيها وحدتها
+  if (net <= threshold && P.includes('T')){
+    if (mu.T <= net){ sh.T = net; return { sh, rule: `حتى ${threshold}: ترينديول فقط` }; }
+    P = P.filter(c => c !== 'T');
+    if (!P.length) return { sh, rule: 'وحدة ترينديول أكبر من الرصيد' };
+  }
+  const first = P.includes('T') ? 'T' : P[0];
+  if (P.length === 1){ sh[P[0]] = net; return { sh, rule: 'منصة واحدة' }; }
+  const weights = {}; let tot = 0;
+  P.forEach(c => { weights[c] = (w && w[c]) || 0; tot += weights[c]; });
+  const equal = () => {
+    const base = Math.floor(net / P.length);
+    P.forEach(c => sh[c] = base);
+    sh[first] += net - base * P.length;
+  };
+  if (mode === 'trendyol' && P.includes('T')){
+    const others = P.filter(c => c !== 'T');
+    const need = others.reduce((a, c) => a + mu[c], 0);
+    if (net - need >= mu.T){ others.forEach(c => sh[c] = mu[c]); sh.T = net - need; }
+    else { sh.T = net; }
+    return { sh, rule: 'أولوية ترينديول' };
+  }
+  if (mode === 'sales' && tot > 0){
+    // ترتيب المنصات: الأعلى مبيعاً أولاً، وعند التساوي ترينديول ثم كارفور ثم شي إن
+    const order = P.slice().sort((a, b) => (weights[b] - weights[a]) || (CH.indexOf(a) - CH.indexOf(b)));
+    const need = P.reduce((a, c) => a + mu[c], 0);
+    if (net < need){
+      let left = net;
+      for (const c of order){ if (left >= mu[c]){ sh[c] = mu[c]; left -= mu[c]; } }
+      // ✅ [L5] الباقي لأول منصة (بترتيب المبيعات) استلمت نصيباً
+      const tgt = order.find(c => sh[c] > 0) || order[0]; sh[tgt] += left;
+      return { sh, rule: 'لا يكفي وحدة لكل منصة: للأعلى مبيعاً' };
+    }
+    P.forEach(c => sh[c] = mu[c]);
+    const R = net - need;
+    let given = 0;
+    P.forEach(c => { const g = Math.floor(R * weights[c] / tot); sh[c] += g; given += g; });
+    sh[order[0]] += R - given;
+    return { sh, rule: 'وحدة لكل منصة + الباقي حسب المبيعات' };
+  }
+  equal();
+  return { sh, rule: mode === 'sales' ? 'بالتساوي (لا مبيعات للصنف)' : 'بالتساوي' };
+}
+
+// توزيع نصيب منصة على عروضها: بالتساوي بالقطع، والباكت يأخذ وحدات كاملة، والباقي بالتناوب
+function splitInChannel(list, bc, pcs, alloc){
+  if (!list.length || pcs <= 0) return pcs;
+  const share = Math.floor(pcs / list.length); let rem = pcs;
+  const give = (L, p) => { const m = alloc.get(L) || new Map(); m.set(bc, (m.get(bc) || 0) + p); alloc.set(L, m); };
+  list.forEach(({ L, u }) => { const p = Math.floor(share / u) * u; if (p) give(L, p); rem -= p; });
+  let prog = true;
+  while (rem > 0 && prog){
+    prog = false;
+    for (const { L, u } of list){ if (rem >= u){ give(L, u); rem -= u; prog = true; } }
+  }
+  return rem;
+}
+
+// ✅ قرار المستخدم: الأداة تعمل على الربط «مؤكد» فقط. الماستر بدون عمود الثقة (ترينديول) = مؤكد.
+// «غير مطابق» = غير موجود في أودو، ويُصفَّر.
+const isReview = L => !!L.conf && L.conf !== 'مؤكد' && L.conf !== 'غير مطابق';
+
+function compute(){
+  const D = S.data; const st = S.settings;
+  const EXCL = new Set(st.excluded.map(norm));
+  // قرار كل عرض
+  D.listings.forEach(L => {
+    L.statusOn = isStatusOn(L.ch, L.status);
+    if (!L.inMaster){ L.decision = 'keep'; L.why = 'غير موجود في الماستر'; }
+    else if (!L.onChannel){ L.decision = 'keep'; L.why = 'غير موجود في ملف المنصة'; }
+    else if (L.hold){ L.decision = 'keep'; L.why = 'Hold'; }
+    else if (isReview(L)){ L.decision = 'keep'; L.why = 'ربط غير مؤكد'; }
+    else if (!L.statusOn){ L.decision = 'keep'; L.why = 'حالة مستبعدة'; }
+    else if (L.managerStop){ L.decision = 'zero'; L.why = 'إيقاف مدير الحساب'; }
+    else if (!L.hasOdoo){ L.decision = 'zero'; L.why = L.ref ? 'غير موجود في أودو' : 'بدون باركود أودو'; }
+    else { L.decision = 'alloc'; L.why = ''; }
+    L.newQty = L.decision === 'keep' ? L.cur : 0;
+  });
+  // المستهلكون لكل باركود
+  const cons = new Map();
+  D.listings.forEach(L => {
+    if (L.decision !== 'alloc') return;
+    L.comps.forEach(c => {
+      let e = cons.get(c.bc); if (!e){ e = { T:[], C:[], S:[] }; cons.set(c.bc, e); }
+      e[L.ch].push({ L, u: c.qty });
+    });
+  });
+  const alloc = new Map(); const products = [];
+  cons.forEach((e, bc) => {
+    const od = D.odoo.get(bc); const pend = D.pend.get(bc) || 0;
+    const net = Math.max(0, Math.floor((od ? od.qty : 0) - pend));
+    const P = CH.filter(c => e[c].length);
+    const w = D.hist.get(bc) || null;
+    const row = { bc, name: od ? od.name : '', odoo: od ? od.qty : 0, pend, net, n: { T:e.T.length, C:e.C.length, S:e.S.length }, w: w || {T:0,C:0,S:0}, sh: {T:0,C:0,S:0}, lost: 0, rule: '' };
+    if (EXCL.has(bc)){
+      CH.forEach(c => e[c].forEach(({ L }) => { const m = alloc.get(L) || new Map(); m.set(bc, net); alloc.set(L, m); }));
+      CH.forEach(c => row.sh[c] = e[c].length ? net : 0);
+      row.rule = 'مستثنى: كل عرض يأخذ الرصيد كاملاً';
+      products.push(row); return;
+    }
+    const mu = {};
+    CH.forEach(c => mu[c] = e[c].length ? Math.min(...e[c].map(x => x.u)) : 1);
+    const { sh, rule } = splitChannels(net, P, w, st.mode, st.threshold, mu);
+    row.rule = rule;
+    let back = 0;
+    ['C','S'].forEach(c => { if (sh[c]) back += splitInChannel(e[c], bc, sh[c], alloc); });
+    let lost = e.T.length ? splitInChannel(e.T, bc, sh.T + back, alloc) : sh.T + back;
+    // ✅ [M2] ما لا يكفي وحدة في منصته يُعرض على أي منصة أخرى تكفيه، بالأولوية ترينديول ثم كارفور ثم شي إن
+    for (const c of CH){ if (lost > 0 && e[c].length) lost = splitInChannel(e[c], bc, lost, alloc); }
+    // النصيب الفعلي بعد التوزيع داخل المنصة
+    CH.forEach(c => row.sh[c] = e[c].reduce((a, { L }) => a + ((alloc.get(L) || new Map()).get(bc) || 0), 0));
+    row.lost = lost;
+    products.push(row);
+  });
+  D.listings.forEach(L => {
+    if (L.decision !== 'alloc') return;
+    const m = alloc.get(L) || new Map();
+    L.newQty = Math.max(0, Math.min(...L.comps.map(c => Math.floor((m.get(c.bc) || 0) / c.qty))));
+  });
+  D.listings.forEach(L => { L.changed = L.inMaster && L.onChannel && L.decision !== 'keep' && L.newQty !== L.cur; });
+  D.products = products.sort((a, b) => b.net - a.net);
+  renderStats(); fillStatusFilter(); renderTable();
+}
+
+// ===================== العرض =====================
+function renderStats(){
+  const D = S.data;
+  const box = (num, lbl, color) => `<div class="stat-box"><div class="stat-num" style="color:${color||'#1e293b'}">${num}</div><div class="stat-lbl">${lbl}</div></div>`;
+  let html = '';
+  CH.forEach(ch => {
+    const ls = D.listings.filter(l => l.ch === ch && l.inMaster);
+    const ch_ = ls.filter(l => l.changed).length;
+    const EX = new Set(S.settings.excluded.map(norm));
+    const tot = ls.filter(l => l.decision !== 'keep' && !l.comps.some(c => EX.has(c.bc))).reduce((a, l) => a + l.newQty, 0);
+    html += box(ch_.toLocaleString(), `${CH_NAME[ch]}: تغييرات للرفع`, '#4f46e5');
+    html += box(tot.toLocaleString(), `${CH_NAME[ch]}: المعروض الجديد (بدون المستثنى)`);
+  });
+  const noOdoo = D.listings.filter(l => l.inMaster && !l.hasOdoo).length;
+  const lost = D.products.reduce((a, p) => a + p.lost, 0);
+  html += box(noOdoo.toLocaleString(), 'عروض غير موجودة في أودو', '#b91c1c');
+  html += box(D.listings.filter(l => !l.inMaster).length.toLocaleString(), 'غير موجود في الماستر', '#b45309');
+  html += box(lost.toLocaleString(), 'قطع لم تُوزَّع (باكت)', '#64748b');
+  document.getElementById('stats').innerHTML = html;
+}
+function fillStatusFilter(){
+  const sel = document.getElementById('flt-status'); const cur = sel.value;
+  const sts = Array.from(new Set(S.data.listings.map(l => l.status))).sort();
+  sel.innerHTML = '<option value="">كل الحالات</option>' + sts.map(s => `<option value="${esc(s)}">${esc(s || '(بدون حالة)')}</option>`).join('');
+  sel.value = sts.includes(cur) ? cur : '';
+}
+const DEC_BADGE = { alloc:'<span class="badge b-ok">موزَّع</span>', zero:'<span class="badge b-zero">تصفير</span>', keep:'<span class="badge b-keep">لا يُلمس</span>' };
+const chBadge = ch => `<span class="badge b-${ch}">${CH_NAME[ch]}</span>`;
+function filteredListings(view){
+  view = view || S.view;
+  const ch = document.getElementById('flt-ch').value, dec = document.getElementById('flt-dec').value;
+  const stv = document.getElementById('flt-status').value, onlyCh = document.getElementById('flt-changed').checked;
+  const q = lower(document.getElementById('flt-search').value);
+  let ls = S.data.listings;
+  if (view === 'noodoo') ls = ls.filter(l => l.inMaster && !l.hasOdoo);
+  else if (view === 'nomaster') ls = ls.filter(l => !l.inMaster);
+  else if (view === 'review') ls = ls.filter(l => l.inMaster && isReview(l));
+  else ls = ls.filter(l => l.inMaster);
+  return ls.filter(l => (!ch || l.ch === ch) && (!dec || l.decision === dec) && (!stv || l.status === stv) && (!onlyCh || l.changed) &&
+    (!q || lower([l.id, l.ref, l.name, l.supplier].join(' ')).includes(q)));
+}
+function renderTable(){
+  if (!S.data) return;
+  const head = document.getElementById('tbl-head'), body = document.getElementById('tbl-body');
+  const LIMIT = 500; let rows = [], total = 0;
+  if (S.view === 'products' || S.view === 'lost'){
+    const q = lower(document.getElementById('flt-search').value), ch = document.getElementById('flt-ch').value;
+    let ps = S.data.products;
+    if (S.view === 'lost') ps = ps.filter(p => p.lost > 0);
+    if (ch) ps = ps.filter(p => p.n[ch] > 0);
+    if (q) ps = ps.filter(p => lower(p.bc + ' ' + p.name).includes(q));
+    total = ps.length;
+    head.innerHTML = '<tr><th>باركود أودو</th><th>الصنف</th><th>أودو</th><th>طلبات</th><th>الصافي</th><th>مبيعات ت/ك/ش</th><th>ترينديول</th><th>كارفور</th><th>شي إن</th><th>لم يُوزَّع</th><th>القاعدة</th></tr>';
+    rows = ps.slice(0, LIMIT).map(p => `<tr><td class="ltr">${esc(p.bc)}</td><td>${esc(p.name)}</td><td>${p.odoo}</td><td>${p.pend || ''}</td><td><b>${p.net}</b></td>` +
+      `<td>${p.w.T || 0} / ${p.w.C || 0} / ${p.w.S || 0}</td>` +
+      CH.map(c => `<td>${p.n[c] ? `<b>${p.sh[c]}</b> <span class="opt">(${p.n[c]} عرض)</span>` : '<span class="opt">—</span>'}</td>`).join('') +
+      `<td>${p.lost || ''}</td><td class="opt">${esc(p.rule)}</td></tr>`);
+  } else {
+    const ls = filteredListings(); total = ls.length;
+    head.innerHTML = '<tr><th>المنصة</th><th>المعرّف</th><th>Barcode odoo</th><th>الاسم</th><th>الحالة</th><th>الحالي</th><th>الجديد</th><th>القرار</th><th>السبب</th><th>المورد</th></tr>';
+    rows = ls.slice(0, LIMIT).map(l => {
+      const diff = l.newQty - l.cur;
+      const nc = l.decision === 'keep' ? '<span class="opt">—</span>' : `<b style="color:${diff > 0 ? '#059669' : diff < 0 ? '#dc2626' : '#334155'}">${l.newQty}</b>`;
+      const why = l.why === 'Hold' ? '<span class="badge b-hold">Hold</span>' : l.why === 'إيقاف مدير الحساب' ? `<span class="badge b-am">🛑 ${esc(l.amRaw)}</span>` : l.why === 'ربط غير مؤكد' ? `<span class="badge b-rev">${esc(l.conf)}</span>` : esc(l.why);
+      return `<tr><td>${chBadge(l.ch)}</td><td class="ltr">${esc(l.id)}</td><td class="ltr">${esc(l.ref)}</td><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.name)}</td>` +
+        `<td class="opt">${esc(l.status)}</td><td>${l.cur}</td><td>${nc}</td><td>${DEC_BADGE[l.decision]}</td><td>${why}</td><td>${esc(l.supplier)}</td></tr>`;
+    });
+  }
+  body.innerHTML = rows.join('');
+  document.getElementById('tbl-info').textContent = total > LIMIT ? `عرض ${LIMIT} من ${total.toLocaleString()} — التصدير يشمل الكل` : `${total.toLocaleString()} صف`;
+}
+
+// ===================== التصدير =====================
+const today = () => new Date().toISOString().slice(0, 10);
+function textCols(ws, cols, fromRow){
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let r = fromRow; r <= range.e.r; r++) cols.forEach(c => {
+    const ref = XLSX.utils.encode_cell({ r, c });
+    if (ws[ref] && ws[ref].v !== '') { ws[ref].t = 's'; ws[ref].v = String(ws[ref].v); delete ws[ref].w; }
+  });
+}
+const changedOf = ch => S.data.listings.filter(l => l.ch === ch && l.changed);
+
+function exportTrendyol(){
+  const ls = changedOf('T');
+  if (!ls.length) return alert('لا توجد تغييرات لترينديول');
+  const cols = ['Barcode','Original (List) Price','Trendyol Sale Price (VAT included)','Product Stock Quantity'];
+  const aoa = [['Product Information','Fields to Update','',''], ['Required','Optional','',''], cols];
+  ls.forEach(l => aoa.push([l.id, l.price || '', l.sale || '', l.newQty]));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!merges'] = [{ s:{r:0,c:1}, e:{r:0,c:3} }, { s:{r:1,c:1}, e:{r:1,c:3} }];
+  textCols(ws, [0], 3);
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Trendyol');
+  XLSX.writeFile(wb, `Trendyol_Stock_${today()}.xlsx`);
+}
+
+function exportCarrefour(){
+  const ls = changedOf('C');
+  if (!ls.length) return alert('لا توجد تغييرات لكارفور');
+  const noPrice = ls.filter(l => !(l.price > 0));
+  if (noPrice.length && !confirm(`${noPrice.length} عرض بدون سعر في ملف كارفور (السعر إجباري في القالب) — سيتم استبعادها. متابعة؟`)) return;
+  const ok = ls.filter(l => l.price > 0);
+  if (!ok.length) return alert('لا توجد عروض بسعر — تأكد أن ملف Inventory Data لكارفور فيه عمود Price (SAR)');
+  const tpl = [['','','','','',''], ['Required','Required for Offer','','','',''], ['Offer Sku','Price','Quantity','Discount Price','Discount Start Date','Discount End Date']];
+  ok.forEach(l => tpl.push([l.id, Number(l.price.toFixed(2)), l.newQty, isBlank(l.disc) ? '' : toNum(l.disc), clean(l.ds), clean(l.de)]));
+  const ws = XLSX.utils.aoa_to_sheet(tpl); textCols(ws, [0], 3);
+  const ex = XLSX.utils.aoa_to_sheet([
+    ['','','','','','',''], ['','Required','Required for Offer','','','',''],
+    ['','Offer Sku','Price','Quantity','Discount Price','Discount Start Date','Discount End Date'],
+    ['Example','CAM123','9.99','10','test example value','test example value','test example value'],
+    ['Definition','This is your own internal reference of the product sold. It can contain alphanumeric and special character. Please avoid spaces.','This is the original price of your offer. You can put price with up to 2 decimals. The format must be ##.## i.e: 50.99. ','This is the quantity of your offer available for sale.','test definition value','test definition value','test definition value']
+  ]);
+  const ref = XLSX.utils.aoa_to_sheet([
+    ['templateType:PRICE_AND_STOCK_UPDATE','','','','',''],
+    ['Offer Sku','Price','Quantity','Discount Price','Discount Start Date','Discount End Date'],
+    ['OFFER_SKU','PRICE','QUANTITY','DISCOUNT_PRICE','DISCOUNT_START_DATE','DISCOUNT_END_DATE']
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Template');
+  XLSX.utils.book_append_sheet(wb, ex, 'Example Sheet');
+  XLSX.utils.book_append_sheet(wb, ref, 'Reference_sheet');
+  XLSX.writeFile(wb, `Carrefour_price_and_stock_update_${today()}.xlsx`);
+}
+
+function exportShein(){
+  const ls = changedOf('S');
+  if (!ls.length) return alert('لا توجد تغييرات لشي إن');
+  const ins = XLSX.utils.aoa_to_sheet([
+    ['مقدمة الميزات'], ['هذه الوظيفة لتعديل مخزون المنتجات بالجملة'], [' '], ['دليل تعبئة النموذج'],
+    ['أدخل رمز SKU الذي تريد تعديله، بالإضافة إلى المخزون القابل للبيع بعد التعديل. يمكن تصدير رموز SKU بشكل جماعي من قائمة المنتجات.'],
+    [' '], ['⚠ملاحظات هامة'], ['1. يرجى عدم تعديل/حذف الصفوف والأعمدة الأصلية أو البيانات المضمنة في ورقة العمل'], [''],
+    ['رقم الإصدار','1.1'], ['ar'], [2]
+  ]);
+  const aoa = [['ترميز الحقول','رمز المنتج','المخزون المتاح'],
+    ['تعليمات التعبئة','أدخل رمز SKU الخاص بـ SHEIN، يمكن تصديره بكميات كبيرة من قائمة المنتجات','مطلوب، يجب أن يكون المخزون القابل للبيع عددًا صحيحًا موجبًا بين 0-999999']];
+  ls.forEach(l => aoa.push(['', l.id, Math.min(999999, l.newQty)]));
+  const ws = XLSX.utils.aoa_to_sheet(aoa); textCols(ws, [1], 2);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ins, 'تعليمات التشغيل');
+  XLSX.utils.book_append_sheet(wb, ws, 'ورقة 1');
+  XLSX.writeFile(wb, `Shein_stock_update_${today()}.xlsx`);
+}
+
+const DEC_TXT = { alloc:'موزَّع', zero:'تصفير', keep:'لا يُلمس' };
+function listingRows(ls){
+  return ls.map(l => ({ 'المنصة': CH_NAME[l.ch], 'المعرّف': l.id, 'Barcode odoo': l.ref, 'الاسم': l.name, 'الحالة': l.status,
+    'الكمية الحالية': l.cur, 'الكمية الجديدة': l.decision === 'keep' ? '' : l.newQty, 'القرار': DEC_TXT[l.decision], 'السبب': l.why,
+    'المورد': l.supplier, 'مدير الحساب': l.amRaw }));
+}
+function exportReport(){
+  const D = S.data;
+  const wb = XLSX.utils.book_new();
+  const sum = [['المنصة','عروض الماستر','تغييرات للرفع','إجمالي المعروض الجديد','موزَّع','تصفير','لا يُلمس']];
+  CH.forEach(ch => {
+    const ls = D.listings.filter(l => l.ch === ch && l.inMaster);
+    sum.push([CH_NAME[ch], ls.length, ls.filter(l => l.changed).length, ls.filter(l => l.decision !== 'keep').reduce((a, l) => a + l.newQty, 0),
+      ls.filter(l => l.decision === 'alloc').length, ls.filter(l => l.decision === 'zero').length, ls.filter(l => l.decision === 'keep').length]);
+  });
+  sum.push([], ['القاعدة', MODE_HELP[S.settings.mode]], ['ترينديول فقط حتى', S.settings.threshold], ['مستثنى من التقسيم', S.settings.excluded.join('، ')],
+    ['المبيعات التاريخية من', D.hist.size ? D.cutoff : 'لا يوجد']);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sum), 'ملخص');
+  const prod = D.products.map(p => ({ 'باركود أودو': p.bc, 'الصنف': p.name, 'رصيد أودو': p.odoo, 'طلبات مخصومة': p.pend, 'الصافي': p.net,
+    'مبيعات ترينديول': p.w.T || 0, 'مبيعات كارفور': p.w.C || 0, 'مبيعات شي إن': p.w.S || 0,
+    'عروض ترينديول': p.n.T, 'عروض كارفور': p.n.C, 'عروض شي إن': p.n.S,
+    'نصيب ترينديول': p.sh.T, 'نصيب كارفور': p.sh.C, 'نصيب شي إن': p.sh.S, 'لم يُوزَّع': p.lost, 'القاعدة': p.rule }));
+  const wsP = XLSX.utils.json_to_sheet(prod); textCols(wsP, [0], 1); XLSX.utils.book_append_sheet(wb, wsP, 'حسب الصنف');
+  const wsL = XLSX.utils.json_to_sheet(listingRows(D.listings.filter(l => l.inMaster))); textCols(wsL, [1, 2], 1); XLSX.utils.book_append_sheet(wb, wsL, 'حسب العرض');
+  const wsN = XLSX.utils.json_to_sheet(listingRows(D.listings.filter(l => !l.inMaster))); textCols(wsN, [1], 1); XLSX.utils.book_append_sheet(wb, wsN, 'غير موجود في الماستر');
+  const wsR = XLSX.utils.json_to_sheet(listingRows(D.listings.filter(l => l.inMaster && isReview(l)))); textCols(wsR, [1, 2], 1); XLSX.utils.book_append_sheet(wb, wsR, 'غير مؤكد الربط');
+  XLSX.writeFile(wb, `توزيع_المنصات_${today()}.xlsx`);
+}
+function exportNoOdoo(){
+  const ls = filteredListings('noodoo');
+  if (!ls.length) return alert('لا توجد عروض غير موجودة في أودو بهذه الفلاتر');
+  const ws = XLSX.utils.json_to_sheet(listingRows(ls)); textCols(ws, [1, 2], 1);
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'غير موجود في أودو');
+  XLSX.writeFile(wb, `غير_موجود_في_أودو_${today()}.xlsx`);
+}
+
+function downloadMasterTemplate(){
+  const common = ['Barcode odoo','عدد القطع','Hold Stock','مدير الحساب','المورد'];
+  const wb = XLSX.utils.book_new();
+  [['ترينديول', ['Barcode'].concat(common), ['8690000000001','6970640620521','1','FALSE','','']],
+   ['كارفور', ['Offer SKU'].concat(common), ['SA8690000000001','8690000000001','6','FALSE','','']],
+   ['شي إن', ['SKU شي إن'].concat(common), ['I1abcdefg12345','8690000000001:2,8690000000002:1','','FALSE','','']]
+  ].forEach(([name, cols, ex]) => { const ws = XLSX.utils.aoa_to_sheet([cols, ex]); textCols(ws, [0, 1], 1); XLSX.utils.book_append_sheet(wb, ws, name); });
+  XLSX.writeFile(wb, 'قالب_الماستر_الموحد.xlsx');
+}
+
+initSettingsUI();
+checkReady();
+</script>
+</body>
+</html>
