@@ -78,15 +78,15 @@
       <div class="dropzone" data-slot="history" data-multi="1"><b>المبيعات التاريخية</b><span class="opt">اختياري — ملف مجمع (الباركود، القناة، القطع) أو ملفات طلبات المنصات</span><div class="fn"></div></div>
     </div>
     <div class="grid-files">
-      <div></div><div class="colh">المخزون الحالي على المنصة (إلزامي)</div><div class="colh">الطلبات غير المخصومة من أودو (اختياري)</div><div class="colh"></div>
+      <div></div><div class="colh">المخزون الحالي على المنصة — رفعه يفعّل المنصة في التوزيع</div><div class="colh">الطلبات غير المخصومة من أودو (اختياري)</div><div class="colh"></div>
       <div class="lbl"><span class="badge b-T">ترينديول</span></div>
-      <div class="dropzone" data-slot="stockT"><span>تصدير منتجات ترينديول</span><span class="opt">إلزامي لو الماستر فيه شيت ترينديول</span><div class="fn"></div></div>
+      <div class="dropzone" data-slot="stockT"><span>تصدير منتجات ترينديول</span><span class="opt">بدونه المنصة مقفولة ولا تدخل التوزيع</span><div class="fn"></div></div>
       <div class="dropzone" data-slot="ordersT" data-multi="1"><span>طلبات ترينديول</span><div class="fn"></div></div><div></div>
       <div class="lbl"><span class="badge b-C">كارفور</span></div>
-      <div class="dropzone" data-slot="stockC"><span>Inventory Data كارفور</span><span class="opt">إلزامي لو الماستر فيه شيت كارفور</span><div class="fn"></div></div>
+      <div class="dropzone" data-slot="stockC"><span>Inventory Data كارفور</span><span class="opt">بدونه المنصة مقفولة ولا تدخل التوزيع</span><div class="fn"></div></div>
       <div class="dropzone" data-slot="ordersC" data-multi="1"><span>طلبات كارفور</span><div class="fn"></div></div><div></div>
       <div class="lbl"><span class="badge b-S">شي إن</span></div>
-      <div class="dropzone" data-slot="stockS"><span>تصدير منتجات شي إن</span><span class="opt">إلزامي لو الماستر فيه شيت شي إن</span><div class="fn"></div></div>
+      <div class="dropzone" data-slot="stockS"><span>تصدير منتجات شي إن</span><span class="opt">بدونه المنصة مقفولة ولا تدخل التوزيع</span><div class="fn"></div></div>
       <div class="dropzone" data-slot="ordersS" data-multi="1"><span>طلبات شي إن</span><div class="fn"></div></div><div></div>
     </div>
     <input type="file" id="file-input" class="hidden" accept=".xlsx,.xls,.csv">
@@ -397,9 +397,11 @@ async function buildData(W){
   }
   if (!listings.length) throw new Error('الماستر: لم تُقرأ أي عروض. تأكد من أسماء الشيتات (ترينديول / كارفور / شي إن) وعمود المعرّف (Barcode / Offer SKU / SKU شي إن).');
   if (masterDup) W.push(`الماستر: ${masterDup} معرّف مكرر في نفس المنصة — تم أخذ أول صف`);
-  // ✅ [C2] ملف مخزون المنصة إلزامي لكل منصة في الماستر (بدونه تُقارن الكمية الجديدة بكمية قديمة)
-  const missing = CH.filter(ch => masterChannels.has(ch) && !S.files['stock' + ch].length);
-  if (missing.length) throw new Error('ارفع ملف المخزون الحالي لـ: ' + missing.map(c => CH_NAME[c]).join('، ') + ' — الماستر فيه عروض لها، وملف المنصة إلزامي.');
+  // المنصة تدخل التوزيع فقط لو ملف مخزونها مرفوع — المنصة المقفولة لا يُرفع ملفها
+  const activeCh = CH.filter(ch => S.files['stock' + ch].length);
+  if (!activeCh.length) throw new Error('ارفع ملف المخزون الحالي لمنصة واحدة على الأقل — المنصات التي يُرفع ملفها هي التي يتم التوزيع عليها.');
+  const noMaster = activeCh.filter(ch => !masterChannels.has(ch));
+  if (noMaster.length) throw new Error('الماستر ليس فيه شيت لـ: ' + noMaster.map(c => CH_NAME[c]).join('، ') + ' — لا يمكن ربط عروضها بأودو.');
 
   // ---- مخزون المنصات الحالي: يحدّث الكمية والحالة والسعر، ويكشف العروض غير الموجودة في الماستر
   const stockLoaded = { T:false, C:false, S:false };
@@ -492,6 +494,8 @@ async function buildData(W){
     L.hasOdoo = L.comps.length > 0 && L.comps.every(c => odoo.has(c.bc));
   });
 
+  if (CH.some(ch => !stockLoaded[ch] && masterChannels.has(ch)))
+    W.push('المنصات المقفولة لا تأخذ نصيباً ولا يُصدَّر لها ملف. طلباتها المرفوعة تُخصم من الرصيد لأنها طلبات حقيقية.');
   return { odoo, listings, pend, pendRes, hist, histRes, cutoff, stockLoaded };
 }
 
@@ -499,12 +503,12 @@ function showReadSummary(W){
   const D = S.data;
   const cnt = ch => D.listings.filter(l => l.ch === ch && l.inMaster).length;
   const notM = ch => D.listings.filter(l => l.ch === ch && !l.inMaster).length;
-  const parts = CH.map(ch => `${CH_NAME[ch]}: ${cnt(ch).toLocaleString()} عرض${notM(ch) ? ` (+${notM(ch)} غير موجود في الماستر)` : ''}${D.stockLoaded[ch] ? '' : ' — بدون ملف مخزون'}`);
+  const parts = CH.map(ch => `${CH_NAME[ch]}: ${cnt(ch).toLocaleString()} عرض${notM(ch) ? ` (+${notM(ch)} غير موجود في الماستر)` : ''}${D.stockLoaded[ch] ? ' ✅' : ' — ⛔ مقفولة (بدون ملف مخزون)'}`);
   document.getElementById('read-summary').innerHTML =
     `📖 أودو: ${D.odoo.size.toLocaleString()} صنف | ${parts.join(' | ')}<br>` +
     `الطلبات المخصومة: ${D.pendRes.lines ? D.pendRes.lines + ' سطر' : 'لا يوجد'}${D.pendRes.skipped ? ` (تجاهل ${D.pendRes.skipped} ملغي/مرتجع)` : ''} | ` +
     `المبيعات التاريخية: ${D.hist.size ? `${D.hist.size.toLocaleString()} صنف من ${D.cutoff} (${D.histRes.lines.toLocaleString()} سطر${D.histRes.old ? `، تجاهل ${D.histRes.old.toLocaleString()} أقدم` : ''})` : 'لا يوجد — التقسيم بالتساوي'}`;
-  const rv = D.listings.filter(l => l.inMaster && l.onChannel && isReview(l) && l.cur > 0);
+  const rv = D.listings.filter(l => D.stockLoaded[l.ch] && l.inMaster && l.onChannel && isReview(l) && l.cur > 0);
   if (rv.length) W.push(`${rv.length} عرض ربطه غير مؤكد ومعروض عليه ${rv.reduce((a, l) => a + l.cur, 0).toLocaleString()} وحدة — لا يُلمس ولا يُحجز له رصيد. أكّد ربطه في الماستر لتشمله الأداة (عرض «غير مؤكد الربط»)`);
   document.getElementById('read-summary').classList.remove('hidden');
   const w = document.getElementById('warnings');
@@ -515,6 +519,7 @@ function showReadSummary(W){
 function renderStatusGrid(){
   const g = document.getElementById('status-grid');
   g.innerHTML = CH.map(ch => {
+    if (!S.data.stockLoaded[ch]) return `<div class="st-box"><h3>${CH_NAME[ch]}</h3><div class="opt">⛔ مقفولة — ارفع ملف مخزونها لتفعيلها</div></div>`;
     const counts = new Map();
     S.data.listings.forEach(l => { if (l.ch === ch && l.inMaster) counts.set(l.status, (counts.get(l.status) || 0) + 1); });
     const items = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
@@ -643,7 +648,8 @@ function compute(){
   // قرار كل عرض
   D.listings.forEach(L => {
     L.statusOn = isStatusOn(L.ch, L.status);
-    if (!L.inMaster){ L.decision = 'keep'; L.why = 'غير موجود في الماستر'; }
+    if (!D.stockLoaded[L.ch]){ L.decision = 'keep'; L.why = 'المنصة مقفولة'; }
+    else if (!L.inMaster){ L.decision = 'keep'; L.why = 'غير موجود في الماستر'; }
     else if (!L.onChannel){ L.decision = 'keep'; L.why = 'غير موجود في ملف المنصة'; }
     else if (L.hold){ L.decision = 'keep'; L.why = 'Hold'; }
     else if (isReview(L)){ L.decision = 'keep'; L.why = 'ربط غير مؤكد'; }
@@ -705,6 +711,10 @@ function renderStats(){
   const box = (num, lbl, color) => `<div class="stat-box"><div class="stat-num" style="color:${color||'#1e293b'}">${num}</div><div class="stat-lbl">${lbl}</div></div>`;
   let html = '';
   CH.forEach(ch => {
+    if (!D.stockLoaded[ch]){
+      html += box('⛔', `${CH_NAME[ch]}: مقفولة`, '#94a3b8') + box('—', 'لا يدخل التوزيع', '#94a3b8');
+      return;
+    }
     const ls = D.listings.filter(l => l.ch === ch && l.inMaster);
     const ch_ = ls.filter(l => l.changed).length;
     const EX = new Set(S.settings.excluded.map(norm));
@@ -712,7 +722,7 @@ function renderStats(){
     html += box(ch_.toLocaleString(), `${CH_NAME[ch]}: تغييرات للرفع`, '#4f46e5');
     html += box(tot.toLocaleString(), `${CH_NAME[ch]}: المعروض الجديد (بدون المستثنى)`);
   });
-  const noOdoo = D.listings.filter(l => l.inMaster && !l.hasOdoo).length;
+  const noOdoo = D.listings.filter(l => D.stockLoaded[l.ch] && l.inMaster && !l.hasOdoo).length;
   const lost = D.products.reduce((a, p) => a + p.lost, 0);
   html += box(noOdoo.toLocaleString(), 'عروض غير موجودة في أودو', '#b91c1c');
   html += box(D.listings.filter(l => !l.inMaster).length.toLocaleString(), 'غير موجود في الماستر', '#b45309');
@@ -780,10 +790,14 @@ function textCols(ws, cols, fromRow){
     if (ws[ref] && ws[ref].v !== '') { ws[ref].t = 's'; ws[ref].v = String(ws[ref].v); delete ws[ref].w; }
   });
 }
-const changedOf = ch => S.data.listings.filter(l => l.ch === ch && l.changed);
+const changedOf = ch => {
+  if (!S.data.stockLoaded[ch]){ alert(`${CH_NAME[ch]} مقفولة — ارفع ملف مخزونها وأعد القراءة لتفعيلها`); return null; }
+  return S.data.listings.filter(l => l.ch === ch && l.changed);
+};
 
 function exportTrendyol(){
   const ls = changedOf('T');
+  if (!ls) return;
   if (!ls.length) return alert('لا توجد تغييرات لترينديول');
   const cols = ['Barcode','Original (List) Price','Trendyol Sale Price (VAT included)','Product Stock Quantity'];
   const aoa = [['Product Information','Fields to Update','',''], ['Required','Optional','',''], cols];
@@ -797,6 +811,7 @@ function exportTrendyol(){
 
 function exportCarrefour(){
   const ls = changedOf('C');
+  if (!ls) return;
   if (!ls.length) return alert('لا توجد تغييرات لكارفور');
   const noPrice = ls.filter(l => !(l.price > 0));
   if (noPrice.length && !confirm(`${noPrice.length} عرض بدون سعر في ملف كارفور (السعر إجباري في القالب) — سيتم استبعادها. متابعة؟`)) return;
@@ -825,6 +840,7 @@ function exportCarrefour(){
 
 function exportShein(){
   const ls = changedOf('S');
+  if (!ls) return;
   if (!ls.length) return alert('لا توجد تغييرات لشي إن');
   const ins = XLSX.utils.aoa_to_sheet([
     ['مقدمة الميزات'], ['هذه الوظيفة لتعديل مخزون المنتجات بالجملة'], [' '], ['دليل تعبئة النموذج'],
