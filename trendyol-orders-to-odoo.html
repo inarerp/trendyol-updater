@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>طلبات ترينديول إلى أودو</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"
+        onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';document.head.appendChild(s);"></script>
+<style>
+  :root {
+    --bg: #F3F5F4;
+    --surface: #FFFFFF;
+    --ink: #1B2A2E;
+    --muted: #5D6B6E;
+    --line: #D6DEDB;
+    --primary: #1F6F6B;
+    --primary-ink: #FFFFFF;
+    --primary-soft: #E3F0EE;
+    --warn: #9A6412;
+    --warn-soft: #FBF1DF;
+    --bad: #A8322D;
+    --bad-soft: #F8E4E2;
+    --good: #2E7D4F;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #141B1D;
+      --surface: #1C2629;
+      --ink: #E4ECEA;
+      --muted: #9AAAA7;
+      --line: #2F3D40;
+      --primary: #5FB3AC;
+      --primary-ink: #0F1A1B;
+      --primary-soft: #1E3634;
+      --warn: #E2B25E;
+      --warn-soft: #3A2F1C;
+      --bad: #E58A84;
+      --bad-soft: #3B2221;
+      --good: #7CCB9A;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans Arabic', Tahoma, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  main { max-width: 920px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 26px; font-weight: 700; margin: 0 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 28px; max-width: 70ch; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px; }
+  .step { display: grid; grid-template-columns: 36px 1fr; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .step:first-child { padding-top: 0; }
+  .num { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); font-weight: 700; display: grid; place-items: center; }
+  .step h2 { font-size: 16px; margin: 4px 0 2px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+  .hint code { background: var(--primary-soft); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+  input[type=file], input[type=date], input[type=text] {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--bg); color: var(--ink); font: inherit;
+  }
+  .fileinfo { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding-top: 16px; }
+  .row3 label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+  button {
+    font: inherit; font-weight: 500; border-radius: 6px; padding: 10px 18px; cursor: pointer;
+    border: 1px solid var(--primary); background: var(--primary); color: var(--primary-ink);
+  }
+  button.ghost { background: transparent; color: var(--primary); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .link { background: none; border: none; color: var(--primary); padding: 0; text-decoration: underline; font-size: 13px; }
+  #status { margin-top: 16px; padding: 12px 14px; border-radius: 6px; display: none; }
+  #status.error { display: block; background: var(--bad-soft); color: var(--bad); }
+  #status.info { display: block; background: var(--primary-soft); color: var(--primary); }
+  #result { display: none; margin-top: 24px; }
+  .verdict { font-size: 18px; font-weight: 700; margin: 0 0 14px; }
+  .verdict.ok { color: var(--good); }
+  .verdict.warn { color: var(--warn); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .stat { background: var(--surface); padding: 12px 14px; }
+  .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 13px; color: var(--muted); }
+  .stat.bad b { color: var(--bad); }
+  .stat.warn b { color: var(--warn); }
+  section.block { margin-top: 22px; }
+  section.block h3 { font-size: 15px; margin: 0 0 8px; }
+  .scroll { max-height: 320px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { position: sticky; top: 0; background: var(--surface); color: var(--muted); font-weight: 500; }
+  td.code { font-family: Consolas, 'Courier New', monospace; direction: ltr; text-align: right; }
+  tr.bad td:first-child { box-shadow: inset -3px 0 var(--bad); }
+  tr.warn td:first-child { box-shadow: inset -3px 0 var(--warn); }
+  .missing { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bad-soft); }
+  .missing span { font-family: Consolas, monospace; background: var(--surface); padding: 2px 8px; border-radius: 4px; font-size: 13px; }
+  .confirm { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--bad); }
+  .confirm input { width: auto; margin: 0; }
+  .ver { font-size: 12px; color: var(--muted); margin: -20px 0 24px; }
+  @media (max-width: 640px) { .row3 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>طلبات ترينديول إلى أودو</h1>
+  <p class="lead" id="leadText">ارفع ملف التأكيد وملفات طلبات ترينديول وملف مخزون أودو. الأداة تكتب تحت كل طلب الباركودات وكمياتها كما في ترينديول، وتطبّق البدائل وعدد القطع اللي كتبتها، وتحسب الضريبة من أودو.</p>
+
+  <p class="ver" id="libVer"></p>
+  <div class="panel">
+    <div class="step">
+      <div class="num">1</div>
+      <div>
+        <h2>ملف التأكيد</h2>
+        <p class="hint">أعمدة: <code>رقم العميل المرجعي</code> و<code>الباركود في الطلب</code> و<code>الباركود البديل</code> و<code>عدد القطع</code>. سطر التعديل اللي رقم طلبه فاضي يتبع الطلب اللي فوقه. لسطر Stock Code بتاعه فاضي اكتب «فاضي» في عمود الباركود في الطلب. <button class="link" type="button" id="tplBtn">تحميل نموذج فاضي</button></p>
+        <input type="file" id="confirmFile" accept=".xlsx,.xls,.csv">
+        <div class="fileinfo" id="confirmInfo"></div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="num">2</div>
+      <div>
+        <h2>ملفات طلبات ترينديول</h2>
+        <p class="hint">تقدر تختار أكتر من ملف. لو الطلب موجود في أكتر من ملف، تتاخد سطوره من أول ملف فيه.</p>
+        <input type="file" id="trendyolFiles" accept=".xlsx,.xls,.csv" multiple>
+        <div class="fileinfo" id="trendyolInfo"></div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="num">3</div>
+      <div>
+        <h2>ملف مخزون أودو</h2>
+        <p class="hint">لازم يكون فيه عمود الباركود وعمود <code>ضرائب العميل/اسم الضريبة</code>.</p>
+        <input type="file" id="odooFile" accept=".xlsx,.xls,.csv">
+        <div class="fileinfo" id="odooInfo"></div>
+      </div>
+    </div>
+    <div class="row3">
+      <div><label for="invoiceDate">تاريخ الفاتورة</label><input type="date" id="invoiceDate"></div>
+      <div><label for="customer">العميل</label><input type="text" id="customer" value="ترنديول"></div>
+      <div><label for="outName">اسم الملف الناتج</label><input type="text" id="outName" placeholder="مبيعات ترنديول"></div>
+    </div>
+    <div class="actions">
+      <button type="button" id="runBtn">إنشاء ملف أودو</button>
+    </div>
+    <div id="status" role="status"></div>
+  </div>
+
+  <div id="result" class="panel"></div>
+</main>
+
+<script>
+// CORE-START — منطق المعالجة بدون أي تعامل مع الصفحة
+const ODOO_HEADERS = ['رقم العميل المرجعي', 'تاريخ الفاتورة ', 'بنود الطلب/المنتج', 'بنود الطلب/الكمية',
+  'بنود الطلب/الضرائب', 'بنود الطلب/سعر الوحدة', 'العميل', 'سعر البيع', 'الضريبة', 'السعر بدون ضريبة'];
+const CONFIRM_HEADERS = ['رقم العميل المرجعي', 'الباركود في الطلب', 'الباركود البديل', 'عدد القطع'];
+const EMPTY = '#EMPTY';            // مفتاح السطر اللي Stock Code بتاعه فاضي
+const EMPTY_WORD = 'فاضي';
+const BAD_STATUS = /cancel|return|undeliver|unsuppl/i;
+
+function normHead(h) { return String(h ?? '').replace(/\s+/g, ' ').trim(); }
+
+// يرجع '' للفاضي، و null لرقم فقد دقته في إكسل (أكتر من 15 رقم)
+function normCode(v) {
+  if (v === null || v === undefined || v === '') return '';
+  if (typeof v === 'number') {
+    if (!Number.isFinite(v)) return '';
+    return Number.isSafeInteger(v) && v < 1e15 ? String(v) : null;
+  }
+  return String(v).replace(/[\s\u200B-\u200F\uFEFF]/g, '').replace(/^'/, '').replace(/\.0+$/, '').toUpperCase();
+}
+
+// مفتاح المطابقة: الفاضي له مفتاح خاص، والأرقام بدون أصفار بادئة
+function matchKey(code) {
+  if (code === null || code === '' || code === undefined) return EMPTY;
+  if (code === EMPTY) return EMPTY;
+  return /^\d+$/.test(code) ? code.replace(/^0+(?=\d)/, '') : code;
+}
+
+function parseNumber(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+  if (value === null || value === undefined) return NaN;
+  let s = String(value).trim()
+    .replace(/[\u0660-\u0669]/g, d => d.charCodeAt(0) - 0x0660)
+    .replace(/[^\d.,\-()]/g, '');
+  if (s === '') return NaN;
+  const negative = /^\(.*\)$/.test(s);
+  s = s.replace(/[()]/g, '');
+  if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+    s = /,\d{1,2}$/.test(s) ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  } else {
+    s = s.replace(/,/g, '');
+  }
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? (negative ? -n : n) : NaN;
+}
+
+const round = (n, d) => Math.round(n * 10 ** d) / 10 ** d;
+
+function findHeaderRow(aoa, test, maxScan = 30) {
+  for (let i = 0; i < Math.min(aoa.length, maxScan); i++) {
+    if ((aoa[i] || []).some(c => test(normHead(c)))) return i;
+  }
+  return -1;
+}
+
+// يدور في كل أوراق الملف على أول ورقة فيها صف العناوين المطلوب
+function pickSheet(sheets, tests) {
+  for (const test of tests) {
+    for (const aoa of sheets) {
+      const hIdx = findHeaderRow(aoa, test);
+      if (hIdx > -1) return { aoa, hIdx };
+    }
+  }
+  return null;
+}
+
+function findCol(headers, preds) {
+  for (const p of preds) {
+    const i = headers.findIndex(h => p(h));
+    if (i > -1) return i;
+  }
+  return -1;
+}
+
+function taxFactor(name) {
+  const n = normHead(name);
+  if (n.startsWith('مبيعات طبية')) return 1;
+  if (n.startsWith('ضريبة مبيعات')) return 1.15;
+  return null;
+}
+
+function warn(list, severity, order, code, type, detail) {
+  list.push({ severity, order: order ?? '', code: code ?? '', type, detail });
+}
+
+// ملف التأكيد → ترتيب الطلبات + التعديلات لكل طلب
+function parseConfirm(sheets, warnings) {
+  const found = pickSheet(sheets, [
+    h => h === 'رقم العميل المرجعي',
+    h => h.includes('المرجعي') || (h.includes('رقم') && h.includes('طلب'))
+  ]);
+  if (!found) throw new Error('ملف التأكيد: مش لاقي عمود «رقم العميل المرجعي».');
+  const { aoa, hIdx } = found;
+  const headers = aoa[hIdx].map(normHead);
+  const orderCol = findCol(headers, [h => h === 'رقم العميل المرجعي', h => h.includes('المرجعي'), h => h.includes('رقم') && h.includes('طلب')]);
+  const origCol = findCol(headers, [h => h === 'الباركود في الطلب', h => h.includes('باركود') && !h.includes('بديل'), h => h === 'بنود الطلب/المنتج']);
+  const altCol = findCol(headers, [h => h.includes('بديل')]);
+  const piecesCol = findCol(headers, [h => h.includes('قطع')]);
+  const barcodeCols = headers.filter(h => h.includes('باركود'));
+  if (barcodeCols.length > 1 && altCol === -1) {
+    throw new Error(`ملف التأكيد: فيه ${barcodeCols.length} أعمدة باركود ومش عارف أنهي البديل. سمّي عمود البديل «الباركود البديل».`);
+  }
+
+  const orders = [];
+  const seen = new Set();
+  const exByOrder = new Map();
+  let duplicates = 0;
+  let last = '';
+
+  aoa.slice(hIdx + 1).forEach((r, i) => {
+    const excelRow = hIdx + 2 + i;
+    r = r || [];
+    if (normHead(r[orderCol]) === headers[orderCol]) { last = ''; return; }   // صف عناوين مكرر
+    let id = normCode(r[orderCol]);
+    const origText = origCol > -1 ? normHead(r[origCol]) : '';
+    const orig = origText === EMPTY_WORD ? EMPTY : (origCol > -1 ? normCode(r[origCol]) : '');
+    const alt = altCol > -1 ? normCode(r[altCol]) : '';
+    const piecesRaw = piecesCol > -1 ? r[piecesCol] : '';
+    const hasEdit = orig !== '' || alt !== '' || String(piecesRaw ?? '').trim() !== '';
+
+    if (id === null) {
+      warn(warnings, 'block', String(r[orderCol]), '', 'رقم طلب فقد دقته', `الصف ${excelRow}: اكتب رقم الطلب كنص في ملف التأكيد`);
+      last = '';
+      return;
+    }
+    if (!id) {
+      if (!hasEdit) return;
+      if (!last) {
+        warn(warnings, 'block', '', origText, 'تعديل بلا رقم طلب', `الصف ${excelRow}: مفيش طلب فوقه يتبعه`);
+        return;
+      }
+      id = last;
+    } else if (seen.has(id) && !hasEdit) {
+      duplicates++;
+    }
+    last = id;
+    if (!seen.has(id)) { seen.add(id); orders.push(id); }
+    if (!hasEdit) return;
+
+    const edit = { orig, alt, pieces: null, row: excelRow, used: false, bad: false };
+    if (orig === null || alt === null) {
+      edit.bad = true;
+      warn(warnings, 'block', id, '', 'باركود فقد دقته', `الصف ${excelRow}: اكتب الباركود كنص في ملف التأكيد`);
+    }
+    if (String(piecesRaw ?? '').trim() !== '') {
+      const n = parseNumber(piecesRaw);
+      if (n > 0 && Number.isInteger(n)) edit.pieces = n;
+      else {
+        edit.bad = true;
+        warn(warnings, 'block', id, origText, 'عدد قطع غير صالح', `الصف ${excelRow}: «${piecesRaw}» لازم يكون رقم صحيح أكبر من صفر`);
+      }
+    }
+    if (!exByOrder.has(id)) exByOrder.set(id, []);
+    exByOrder.get(id).push(edit);
+  });
+
+  const columns = {
+    order: headers[orderCol],
+    orig: origCol > -1 ? headers[origCol] : '',
+    alt: altCol > -1 ? headers[altCol] : '',
+    pieces: piecesCol > -1 ? headers[piecesCol] : ''
+  };
+  return { orders, exByOrder, duplicates, columns };
+}
+
+// ملف ترينديول → خريطة الطلب وسطوره
+function parseTrendyol(sheets, fileName) {
+  const found = pickSheet(sheets, [h => h.toLowerCase() === 'order number']);
+  if (!found) throw new Error(`${fileName}: مش لاقي عمود «Order Number».`);
+  const { aoa, hIdx } = found;
+  const headers = aoa[hIdx].map(h => normHead(h).toLowerCase());
+  const col = name => headers.indexOf(name.toLowerCase());
+  const cols = { order: col('Order Number'), code: col('Stock Code'), qty: col('Quantity'), amount: col('Invoice Amount'), status: col('Order Status') };
+  const missing = Object.entries({ 'Stock Code': cols.code, 'Quantity': cols.qty, 'Invoice Amount': cols.amount }).filter(([, i]) => i === -1).map(([n]) => n);
+  if (missing.length) throw new Error(`${fileName}: الأعمدة دي ناقصة: ${missing.join('، ')}`);
+
+  const map = new Map();
+  aoa.slice(hIdx + 1).forEach(r => {
+    r = r || [];
+    const id = normCode(r[cols.order]);
+    if (!id) return;
+    if (!map.has(id)) map.set(id, []);
+    const code = normCode(r[cols.code]);
+    map.get(id).push({
+      codeRaw: normHead(r[cols.code]),
+      code: code === null ? '' : code,
+      lostPrecision: code === null,
+      qty: parseNumber(r[cols.qty]),
+      amount: parseNumber(r[cols.amount]),
+      status: cols.status > -1 ? normHead(r[cols.status]) : ''
+    });
+  });
+  return map;
+}
+
+// ملف أودو → الباركود كما في أودو + الضريبة
+function parseOdoo(sheets) {
+  const found = pickSheet(sheets, [h => h.includes('ضرائب العميل') || h.includes('اسم الضريبة') || /customer taxes|tax name/i.test(h)]);
+  if (!found) throw new Error('ملف أودو: مش لاقي عمود «ضرائب العميل/اسم الضريبة».');
+  const { aoa, hIdx } = found;
+  const headers = aoa[hIdx].map(normHead);
+  const taxCol = findCol(headers, [h => h.includes('ضرائب العميل'), h => h.includes('اسم الضريبة'), h => /customer taxes|tax name/i.test(h)]);
+  const bcCol = findCol(headers, [h => h === 'باركود' || h === 'الباركود' || h.toLowerCase() === 'barcode', h => h.includes('باركود'), h => h.toLowerCase().includes('barcode')]);
+  if (bcCol === -1) throw new Error('ملف أودو: مش لاقي عمود الباركود.');
+  const exact = new Map();   // الباركود كما هو → { code, tax }
+  const loose = new Map();   // الباركود بدون أصفار بادئة → [{ code, tax }]
+  aoa.slice(hIdx + 1).forEach(r => {
+    r = r || [];
+    const bc = normCode(r[bcCol]);
+    if (!bc) return;
+    const tax = normHead(r[taxCol]);
+    if (exact.has(bc)) { if (!exact.get(bc).tax && tax) exact.get(bc).tax = tax; return; }
+    const entry = { code: bc, tax };
+    exact.set(bc, entry);
+    const k = matchKey(bc);
+    if (!loose.has(k)) loose.set(k, []);
+    loose.get(k).push(entry);
+  });
+  if (!exact.size) throw new Error('ملف أودو: مفيش ولا باركود في العمود.');
+  return { exact, loose };
+}
+
+// المطابقة الحرفية أولًا. لو مش موجود، يجرب بدون الأصفار البادئة بشرط يكون في منتج واحد بس
+function lookupOdoo(odoo, code) {
+  if (!code) return { hit: null };
+  if (odoo.exact.has(code)) return { hit: odoo.exact.get(code) };
+  const list = odoo.loose.get(matchKey(code)) || [];
+  if (list.length === 1) return { hit: list[0] };
+  return { hit: null, ambiguous: list.map(e => e.code) };
+}
+
+function linesSignature(lines) {
+  return lines.map(l => `${l.code}|${l.qty}|${l.amount}`).sort().join(';');
+}
+
+function buildOdoo({ confirmSheets, trendyolFiles, odooSheets, customer }) {
+  const warnings = [];
+  const changes = [];
+  const { orders, exByOrder, duplicates, columns } = parseConfirm(confirmSheets, warnings);
+  if (!orders.length) throw new Error('ملف التأكيد مفيهوش أرقام طلبات.');
+
+  const ty = new Map();
+  const conflicts = new Map();
+  let overlap = 0;
+  trendyolFiles.forEach(f => {
+    parseTrendyol(f.sheets, f.name).forEach((lines, id) => {
+      if (!ty.has(id)) { ty.set(id, { lines, file: f.name }); return; }
+      overlap++;
+      if (linesSignature(ty.get(id).lines) !== linesSignature(lines)) conflicts.set(id, [ty.get(id).file, f.name]);
+    });
+  });
+  const odoo = parseOdoo(odooSheets);
+
+  const rows = [];   // كل عنصر: { first, values[] }
+  const missing = [];
+  let found = 0;
+
+  orders.forEach(id => {
+    const entry = ty.get(id);
+    if (!entry) { missing.push(id); return; }
+    found++;
+    const lines = entry.lines;
+    const edits = exByOrder.get(id) || [];
+    const keysInOrder = [...new Set(lines.map(l => matchKey(l.code)))];
+    const shownKeys = () => keysInOrder.map(k => k === EMPTY ? EMPTY_WORD : k).join('، ');
+
+    if (conflicts.has(id)) {
+      const [a, b] = conflicts.get(id);
+      warn(warnings, 'block', id, '', 'الطلب مختلف بين ملفات ترينديول', `اتاخدت سطوره من «${a}» ومختلفة في «${b}»`);
+    }
+    const badStatus = [...new Set(lines.map(l => l.status).filter(s => BAD_STATUS.test(s)))];
+    if (badStatus.length) warn(warnings, 'info', id, '', 'حالة الطلب في ترينديول', badStatus.join('، '));
+
+    // تعديل من غير باركود في الطلب: يتوجّه تلقائيًا لو الهدف واضح
+    edits.forEach(e => {
+      if (e.bad || e.orig) return;
+      if (keysInOrder.length === 1) e.orig = keysInOrder[0];
+      else if (keysInOrder.includes(EMPTY) && e.alt) e.orig = EMPTY;
+      else {
+        e.bad = true;
+        warn(warnings, 'block', id, '', 'حدد الباركود', `الصف ${e.row}: الطلب فيه ${keysInOrder.length} باركودات (${shownKeys()})، اكتب الباركود اللي عاوز تعدّله أو «${EMPTY_WORD}»`);
+      }
+    });
+    const byKey = new Map();
+    edits.filter(e => !e.bad && e.orig).forEach(e => {
+      const k = matchKey(e.orig);
+      if (byKey.has(k)) warn(warnings, 'info', id, e.orig === EMPTY ? EMPTY_WORD : e.orig, 'تعديل مكرر', `الصف ${e.row} بيكرر تعديل الصف ${byKey.get(k).row}، اتطبق الأخير`);
+      byKey.set(k, e);
+    });
+
+    lines.forEach((l, idx) => {
+      const key = matchKey(l.code);
+      const shownOrig = key === EMPTY ? EMPTY_WORD : l.code;
+      let code = l.code;
+      let qty = l.qty;
+      const e = byKey.get(key);
+      if (e) {
+        e.used = true;
+        const parts = [];
+        if (e.alt && matchKey(e.alt) !== key) { code = e.alt; parts.push(`الباركود ${shownOrig} ← ${e.alt}`); }
+        if (e.pieces && e.pieces !== 1) { qty = l.qty * e.pieces; parts.push(`الكمية ${l.qty} × ${e.pieces} = ${qty}`); }
+        if (parts.length) changes.push({ order: id, code: shownOrig, detail: parts.join(' — ') });
+      }
+
+      const { hit, ambiguous } = lookupOdoo(odoo, code);
+      const finalCode = hit ? hit.code : code;     // الباركود كما هو مكتوب في أودو
+      const taxName = hit ? hit.tax : '';
+      const factor = hit ? taxFactor(taxName) : null;
+
+      if (!code) {
+        warn(warnings, 'block', id, l.lostPrecision ? l.codeRaw : '', 'Stock Code فاضي',
+          `السطر طالع بدون باركود. اكتب في ملف التأكيد: الطلب ${id} — الباركود في الطلب «${EMPTY_WORD}» — والبديل`);
+      } else if (!hit && ambiguous && ambiguous.length > 1) {
+        warn(warnings, 'block', id, code, 'باركود له أكتر من منتج في أودو', `في أودو: ${ambiguous.join('، ')} (نفس الرقم بأصفار مختلفة). اكتب الباركود الصح في عمود البديل`);
+      } else if (!hit) {
+        if (/^\d+$/.test(code)) warn(warnings, 'block', id, code, 'مش موجود في أودو', 'الاستيراد هيقف على السطر ده. لو الباركود غلط اكتب البديل في ملف التأكيد');
+        else warn(warnings, 'block', id, code === l.code ? l.codeRaw : code, 'باركود غير صالح', 'مش موجود في أودو وفيه حروف، غالبًا Stock Code غلط في ترينديول. اكتبه في ملف التأكيد مع البديل');
+      } else if (factor === null) {
+        warn(warnings, 'block', id, code, 'ضريبة غير معروفة', taxName ? `«${taxName}» في أودو` : 'عمود الضريبة فاضي في أودو');
+      }
+      if (!(qty > 0)) warn(warnings, 'block', id, code, 'كمية غير صالحة', `الكمية «${Number.isNaN(l.qty) ? 'فاضية' : l.qty}»`);
+      if (Number.isNaN(l.amount) || l.amount < 0) warn(warnings, 'block', id, code, 'مبلغ غير صالح', 'Invoice Amount فاضي أو مش رقم أو سالب');
+
+      const amount = Number.isNaN(l.amount) ? null : round(l.amount, 2);
+      const net = factor && amount !== null ? round(amount / factor, 6) : null;
+      const unit = net !== null && qty > 0 ? round(net / qty, 6) : null;
+      const first = idx === 0;
+      rows.push({
+        first,
+        values: [first ? id : null, null, finalCode || null, qty > 0 ? qty : null, taxName || null, unit,
+                 first ? customer : null, amount, factor, net]
+      });
+    });
+
+    edits.filter(e => !e.bad && e.orig && !e.used).forEach(e => {
+      warn(warnings, 'block', id, e.orig === EMPTY ? EMPTY_WORD : e.orig, 'الباركود مش في الطلب', `الصف ${e.row}: باركودات الطلب: ${shownKeys()}`);
+    });
+  });
+
+  warnings.sort((a, b) => (a.severity === 'block' ? 0 : 1) - (b.severity === 'block' ? 0 : 1));
+  const blocking = warnings.filter(w => w.severity === 'block').length;
+  return {
+    rows, missing, warnings, changes, columns,
+    stats: { requested: orders.length, found, missing: missing.length, lines: rows.length, changes: changes.length,
+             warnings: warnings.length, blocking, duplicates, overlap }
+  };
+}
+
+function dateSerial(isoDate) {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  return (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000;
+}
+
+function missingSheet(XLSX, list) {
+  const ws = XLSX.utils.aoa_to_sheet([['رقم الطلب غير الموجود في ملف ترينديول'], ...list.map(m => [m])]);
+  ws['!cols'] = [{ wch: 36 }];
+  return ws;
+}
+
+function makeWorkbook(XLSX, result, isoDate) {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([ODOO_HEADERS, ...result.rows.map(r => r.values)]);
+  const serial = dateSerial(isoDate);
+  result.rows.forEach((r, i) => {
+    if (!r.first) return;
+    ws[XLSX.utils.encode_cell({ r: i + 1, c: 1 })] = { t: 'n', v: serial, z: 'dd/mm/yyyy' };
+    ws[XLSX.utils.encode_cell({ r: i + 1, c: 0 })] = { t: 's', v: String(r.values[0]) };
+  });
+  result.rows.forEach((r, i) => {
+    if (r.values[2]) ws[XLSX.utils.encode_cell({ r: i + 1, c: 2 })] = { t: 's', v: String(r.values[2]) };
+  });
+  ws['!cols'] = [16, 13, 16, 9, 14, 12, 10, 10, 8, 13].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, ws, 'طلبات أودو');
+  XLSX.utils.book_append_sheet(wb, missingSheet(XLSX, result.missing), 'طلبات غير موجودة');
+
+  const warnWs = XLSX.utils.aoa_to_sheet([['الدرجة', 'رقم الطلب', 'الباركود', 'التنبيه', 'التفاصيل'],
+    ...result.warnings.map(w => [w.severity === 'block' ? 'مانع' : 'للعلم', w.order, w.code, w.type, w.detail])]);
+  warnWs['!cols'] = [{ wch: 8 }, { wch: 16 }, { wch: 16 }, { wch: 26 }, { wch: 70 }];
+  XLSX.utils.book_append_sheet(wb, warnWs, 'تنبيهات');
+
+  const ch = XLSX.utils.aoa_to_sheet([['رقم الطلب', 'الباركود في الطلب', 'التعديل'], ...result.changes.map(c => [c.order, c.code, c.detail])]);
+  ch['!cols'] = [{ wch: 16 }, { wch: 18 }, { wch: 50 }];
+  XLSX.utils.book_append_sheet(wb, ch, 'التعديلات المطبقة');
+  return wb;
+}
+
+// يقرا ملف (إكسل أو CSV) ويرجّع كل أوراقه كمصفوفات
+function workbookToSheets(XLSX, wb) {
+  return wb.SheetNames.map(n => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }));
+}
+
+function readBytes(XLSX, bytes, fileName) {
+  if (/\.csv$/i.test(fileName)) {
+    let text;
+    try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+    catch { text = new TextDecoder('windows-1256').decode(bytes); }
+    return workbookToSheets(XLSX, XLSX.read(text.replace(/^\ufeff/, ''), { type: 'string', raw: true }));
+  }
+  return workbookToSheets(XLSX, XLSX.read(bytes, { type: 'array' }));
+}
+// CORE-END
+</script>
+
+<script>
+const MAX_SIZE = 40 * 1024 * 1024;
+const $ = id => document.getElementById(id);
+let busy = false;
+let lastResult = null;
+
+function todayLocal() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+$('invoiceDate').value = todayLocal();
+
+function esc(t) {
+  return String(t ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+}
+
+function setStatus(msg, type) {
+  const s = $('status');
+  s.textContent = msg || '';
+  s.className = msg ? type : '';
+}
+
+function libReady() {
+  if (typeof XLSX === 'undefined') {
+    setStatus('مكتبة إكسل لسه ما اتحملتش. اتأكد من الإنترنت وجرّب تاني بعد ثواني.', 'error');
+    return false;
+  }
+  return true;
+}
+
+function showLibVersion() {
+  if (typeof XLSX === 'undefined') return setTimeout(showLibVersion, 500);
+  const old = /^0\.(1[0-8]|[0-9])\./.test(XLSX.version);
+  $('libVer').textContent = `مكتبة إكسل ${XLSX.version}${old ? ' — نسخة احتياطية قديمة، المصدر الأساسي ما اشتغلش' : ''}`;
+}
+showLibVersion();
+
+function resetResult() {
+  $('result').style.display = 'none';
+  lastResult = null;
+}
+
+function readFileSheets(file) {
+  return new Promise((resolve, reject) => {
+    if (file.size > MAX_SIZE) return reject(new Error(`${file.name}: الحجم أكبر من 40MB`));
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error(`${file.name}: تعذّر قراءة الملف`));
+    reader.onload = e => {
+      try {
+        resolve(readBytes(XLSX, new Uint8Array(e.target.result), file.name));
+      } catch (err) {
+        reject(new Error(`${file.name}: الملف مش إكسل أو CSV صالح`));
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+[['confirmFile', 'confirmInfo'], ['trendyolFiles', 'trendyolInfo'], ['odooFile', 'odooInfo']].forEach(([inputId, infoId]) => {
+  $(inputId).addEventListener('change', () => {
+    $(infoId).textContent = [...$(inputId).files].map(f => f.name).join('، ');
+    resetResult();
+  });
+});
+['invoiceDate', 'customer'].forEach(id => $(id).addEventListener('input', resetResult));
+
+$('tplBtn').addEventListener('click', () => {
+  if (!libReady()) return;
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([CONFIRM_HEADERS]);
+  ws['!cols'] = [{ wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 10 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'تأكيد الطلبات');
+  XLSX.writeFile(wb, 'نموذج ملف التأكيد.xlsx');
+});
+
+$('runBtn').addEventListener('click', async () => {
+  if (busy || !libReady()) return;
+  const confirmFile = $('confirmFile').files[0];
+  const tyFiles = [...$('trendyolFiles').files];
+  const odooFile = $('odooFile').files[0];
+  const date = $('invoiceDate').value;
+  const customer = $('customer').value.trim();
+  if (!confirmFile) return setStatus('اختار ملف التأكيد.', 'error');
+  if (!tyFiles.length) return setStatus('اختار ملف طلبات ترينديول واحد على الأقل.', 'error');
+  if (!odooFile) return setStatus('اختار ملف مخزون أودو.', 'error');
+  if (!date) return setStatus('اختار تاريخ الفاتورة.', 'error');
+  if (!customer) return setStatus('اكتب اسم العميل كما في أودو.', 'error');
+
+  busy = true;
+  $('runBtn').disabled = true;
+  resetResult();
+  try {
+    setStatus('جاري قراءة ملف التأكيد...', 'info');
+    await new Promise(r => setTimeout(r, 0));
+    const confirmSheets = await readFileSheets(confirmFile);
+    setStatus('جاري قراءة ملف أودو...', 'info');
+    const odooSheets = await readFileSheets(odooFile);
+    const trendyolFiles = [];
+    for (const f of tyFiles) {
+      setStatus(`جاري قراءة ${f.name}...`, 'info');
+      trendyolFiles.push({ name: f.name, sheets: await readFileSheets(f) });
+    }
+    setStatus('جاري المعالجة...', 'info');
+    await new Promise(r => setTimeout(r, 0));
+    const result = buildOdoo({ confirmSheets, trendyolFiles, odooSheets, customer });
+    result.date = date;
+    lastResult = result;
+    setStatus('', '');
+    renderResult(result);
+  } catch (err) {
+    setStatus(err.message, 'error');
+    console.error(err);
+  } finally {
+    busy = false;
+    $('runBtn').disabled = false;
+  }
+});
+
+function downloadOdoo() {
+  if (!lastResult) return;
+  const wb = makeWorkbook(XLSX, lastResult, lastResult.date);
+  const name = ($('outName').value.trim() || `مبيعات ترنديول ${lastResult.date}`).replace(/[\/\\:*?"<>|]/g, '_');
+  XLSX.writeFile(wb, `${name}.xlsx`);
+}
+
+function downloadMissing() {
+  if (!lastResult || !lastResult.missing.length) return;
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, missingSheet(XLSX, lastResult.missing), 'الأرقام الناقصة');
+  XLSX.writeFile(wb, `الطلبات غير الموجودة ${lastResult.date}.xlsx`);
+}
+
+function renderResult(res) {
+  const s = res.stats;
+  let verdict;
+  if (s.blocking) verdict = `<p class="verdict warn">فيه ${s.blocking} مشكلة هتوقف الاستيراد أو تغيّر السعر. صلّحها في ملف التأكيد وشغّل تاني.</p>`;
+  else if (s.missing || s.warnings) verdict = `<p class="verdict warn">الملف جاهز للرفع. راجع ${s.missing ? s.missing + ' طلب غير موجود' : ''}${s.missing && s.warnings ? ' و' : ''}${s.warnings ? s.warnings + ' ملاحظة' : ''}.</p>`;
+  else verdict = '<p class="verdict ok">الملف جاهز للرفع: كل الطلبات موجودة ومفيش تنبيهات.</p>';
+
+  let html = verdict + `<div class="stats">
+    <div class="stat"><b>${s.requested}</b><span>طلب في ملف التأكيد</span></div>
+    <div class="stat"><b>${s.found}</b><span>موجود في ترينديول</span></div>
+    <div class="stat ${s.missing ? 'bad' : ''}"><b>${s.missing}</b><span>غير موجود</span></div>
+    <div class="stat"><b>${s.lines}</b><span>سطر في ملف أودو</span></div>
+    <div class="stat"><b>${s.changes}</b><span>تعديل مطبّق</span></div>
+    <div class="stat ${s.blocking ? 'bad' : s.warnings ? 'warn' : ''}"><b>${s.warnings}</b><span>تنبيه، منها ${s.blocking} مانع</span></div>
+  </div>`;
+
+  const c = res.columns;
+  const notes = [`أعمدة ملف التأكيد المقروءة: الطلب «${c.order}»، الباركود في الطلب «${c.orig || 'غير موجود'}»، البديل «${c.alt || 'غير موجود'}»، القطع «${c.pieces || 'غير موجود'}».`];
+  if (s.duplicates) notes.push(`${s.duplicates} رقم طلب مكرر في ملف التأكيد واتكتب مرة واحدة.`);
+  if (s.overlap) notes.push(`${s.overlap} طلب موجود في أكتر من ملف ترينديول، واتاخدت سطوره من أول ملف.`);
+  html += `<p class="hint" style="margin-top:10px">${notes.map(esc).join('<br>')}</p>`;
+
+  html += '<div class="actions">';
+  if (s.blocking) html += `<label class="confirm"><input type="checkbox" id="forceDl"> عارف إن فيه ${s.blocking} مشكلة مانعة، حمّل برضه</label>`;
+  html += `<button type="button" id="dlBtn" ${s.blocking ? 'disabled' : ''}>تحميل ملف أودو</button>`;
+  if (s.missing) html += '<button type="button" class="ghost" id="dlMissBtn">تحميل الطلبات غير الموجودة</button>';
+  html += '</div>';
+
+  if (s.missing) {
+    html += `<section class="block"><h3>طلبات مش موجودة في ملف ترينديول (اتكنسلت أو فيها مشكلة)</h3>
+      <div class="missing">${res.missing.map(m => `<span>${esc(m)}</span>`).join('')}</div></section>`;
+  }
+  if (s.warnings) {
+    html += `<section class="block"><h3>التنبيهات</h3><div class="scroll"><table>
+      <thead><tr><th>الدرجة</th><th>رقم الطلب</th><th>الباركود</th><th>التنبيه</th><th>التفاصيل</th></tr></thead><tbody>
+      ${res.warnings.map(w => `<tr class="${w.severity === 'block' ? 'bad' : 'warn'}"><td>${w.severity === 'block' ? 'مانع' : 'للعلم'}</td><td class="code">${esc(w.order)}</td><td class="code">${esc(w.code)}</td><td>${esc(w.type)}</td><td>${esc(w.detail)}</td></tr>`).join('')}
+      </tbody></table></div></section>`;
+  }
+  if (s.changes) {
+    html += `<section class="block"><h3>التعديلات المطبّقة</h3><div class="scroll"><table>
+      <thead><tr><th>رقم الطلب</th><th>الباركود في الطلب</th><th>التعديل</th></tr></thead><tbody>
+      ${res.changes.map(ch => `<tr><td class="code">${esc(ch.order)}</td><td class="code">${esc(ch.code)}</td><td>${esc(ch.detail)}</td></tr>`).join('')}
+      </tbody></table></div></section>`;
+  }
+
+  const box = $('result');
+  box.innerHTML = html;
+  box.style.display = 'block';
+  $('dlBtn').addEventListener('click', downloadOdoo);
+  if (s.blocking) $('forceDl').addEventListener('change', e => { $('dlBtn').disabled = !e.target.checked; });
+  if (s.missing) $('dlMissBtn').addEventListener('click', downloadMissing);
+  box.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
