@@ -363,6 +363,11 @@ async function buildData(W){
     }
   }
 
+  // ✅ ملف أودو اللي فيه الأصناف اللي ليها رصيد بس: الصنف الناقص منه رصيده صفر، مش «غير موجود في أودو»
+  let nonPos = 0; odoo.forEach(v => { if (v.qty <= 0) nonPos++; });
+  const stockOnlyOdoo = nonPos === 0;
+  if (stockOnlyOdoo) W.push('ملف أودو فيه الأصناف اللي ليها رصيد بس — أي صنف مش فيه هيتصفّر ويتكتب «رصيد صفر أو غير معرّف». لتقرير «غير موجود في أودو» دقيق ارفع ملف أودو الكامل.');
+
   // ---- الماستر: كل شيت = منصة (من اسم الشيت أو من أعمدته)
   const listings = []; const byKey = new Map();
   const masterChannels = new Set(); let masterDup = 0;
@@ -416,7 +421,12 @@ async function buildData(W){
         const id = clean(cellOf(r, d, 'id')); if (!id) continue;
         const key = ch + '|' + norm(id); seen.add(key);
         let st = clean(cellOf(r, d, 'status'));
-        if (ch === 'T'){ const desc = clean(cellOf(r, d, 'desc')); if (desc) st = desc; else if (lower(st) === 'active') st = ''; }
+        // ✅ عمود Status في ملف ترينديول فيه الحالة المختصرة؛ Status Description شرح طويل يُستخدم فقط لو Status فاضي أو عام
+        if (ch === 'T'){
+          const desc = clean(cellOf(r, d, 'desc'));
+          if (['active','on sale'].includes(lower(st))) st = '';
+          else if ((!st || ['disabled','passive','inactive'].includes(lower(st))) && desc) st = desc;
+        }
         let L = byKey.get(key);
         if (!L){
           L = { ch, id, nid: norm(id), inMaster:false, onChannel:true, ref:'', comps:[], hold:false, amRaw:'', managerStop:false, supplier:'', conf:'', name:'', status:'', cur:0, price:0, sale:0 };
@@ -496,7 +506,7 @@ async function buildData(W){
 
   if (CH.some(ch => !stockLoaded[ch] && masterChannels.has(ch)))
     W.push('المنصات المقفولة لا تأخذ نصيباً ولا يُصدَّر لها ملف. طلباتها المرفوعة تُخصم من الرصيد لأنها طلبات حقيقية.');
-  return { odoo, listings, pend, pendRes, hist, histRes, cutoff, stockLoaded };
+  return { odoo, listings, pend, pendRes, hist, histRes, cutoff, stockLoaded, stockOnlyOdoo };
 }
 
 function showReadSummary(W){
@@ -640,7 +650,8 @@ function splitInChannel(list, bc, pcs, alloc){
 
 // ✅ قرار المستخدم: الأداة تعمل على الربط «مؤكد» فقط. الماستر بدون عمود الثقة (ترينديول) = مؤكد.
 // «غير مطابق» = غير موجود في أودو، ويُصفَّر.
-const isReview = L => !!L.conf && L.conf !== 'مؤكد' && L.conf !== 'غير مطابق';
+const CONF_OK = ['مؤكد','موكد','مأكد','confirmed','ok'];
+const isReview = L => !!L.conf && !CONF_OK.includes(lower(L.conf)) && L.conf !== 'غير مطابق';
 
 function compute(){
   const D = S.data; const st = S.settings;
@@ -655,7 +666,7 @@ function compute(){
     else if (isReview(L)){ L.decision = 'keep'; L.why = 'ربط غير مؤكد'; }
     else if (!L.statusOn){ L.decision = 'keep'; L.why = 'حالة مستبعدة'; }
     else if (L.managerStop){ L.decision = 'zero'; L.why = 'إيقاف مدير الحساب'; }
-    else if (!L.hasOdoo){ L.decision = 'zero'; L.why = L.ref ? 'غير موجود في أودو' : 'بدون باركود أودو'; }
+    else if (!L.hasOdoo){ L.decision = 'zero'; L.why = !L.ref ? 'بدون باركود أودو' : (D.stockOnlyOdoo ? 'رصيد صفر أو غير معرّف' : 'غير موجود في أودو'); }
     else { L.decision = 'alloc'; L.why = ''; }
     L.newQty = L.decision === 'keep' ? L.cur : 0;
   });
@@ -743,7 +754,7 @@ function filteredListings(view){
   const stv = document.getElementById('flt-status').value, onlyCh = document.getElementById('flt-changed').checked;
   const q = lower(document.getElementById('flt-search').value);
   let ls = S.data.listings;
-  if (view === 'noodoo') ls = ls.filter(l => l.inMaster && !l.hasOdoo);
+  if (view === 'noodoo') ls = ls.filter(l => l.inMaster && !l.hasOdoo && (!S.data.stockOnlyOdoo || !l.ref));
   else if (view === 'nomaster') ls = ls.filter(l => !l.inMaster);
   else if (view === 'review') ls = ls.filter(l => l.inMaster && isReview(l));
   else ls = ls.filter(l => l.inMaster);
