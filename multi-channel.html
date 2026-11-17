@@ -157,6 +157,7 @@
       <button class="btn btn-success" onclick="exportShein()">⬇️ رفع شي إن (قالب تعديل المخزون)</button>
       <button class="btn btn-outline" onclick="exportReport()">📊 تقرير التوزيع الكامل</button>
       <button class="btn btn-outline" onclick="exportNoOdoo()">📋 غير موجود في أودو (للتجهيز)</button>
+      <button class="btn btn-primary" onclick="exportMaster()">🗂️ الماستر المحدّث (بالعروض الجديدة)</button>
     </div>
     <div class="info-box">ملفات الرفع تحتوي فقط العروض التي تغيرت كميتها. العروض في حالة مستبعدة أو Hold أو ربط غير مؤكد لا تُلمس — الأداة تعمل على الربط «مؤكد» فقط.</div>
   </div>
@@ -210,22 +211,71 @@ const isTrue = v => ['true','yes','نعم','1'].includes(lower(v));
 const AM_NEG = ['','لا','no','-','0','false','none','n/a','لا يوجد'];
 const isAmStop = v => !AM_NEG.includes(lower(v));
 
-function readRows(file, sheetName){
+// ===================== قراءة الملفات (سريعة ومتوازية) =====================
+// كل ملف يتقري مرة واحدة في Web Worker منفصل (بالتوازي)، والنتيجة بتتخزن، فإعادة القراءة
+// بعد تغيير ملف واحد ما بتعيدش قراءة الباقي. النصوص الطويلة (الوصف) بتتقص لـ 250 حرف لأننا مش محتاجينها.
+const XLSX_URL = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+const READ_OPTS = { type:'array', raw:true, dense:true, cellText:false, cellHTML:false, cellFormula:false, cellStyles:false, cellNF:false, cellDates:false };
+const WORKER_SRC = `importScripts('${XLSX_URL}');
+self.onmessage = e => {
+  const { id, buf, all, opts } = e.data;
+  try {
+    const o = Object.assign({}, opts); if (!all) o.sheets = 0;
+    const wb = XLSX.read(new Uint8Array(buf), o);
+    const names = all ? wb.SheetNames : [wb.SheetNames[0]];
+    const sheets = names.map(n => {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, defval:'', raw:true, blankrows:false });
+      for (const r of rows) for (let i = 0; i < r.length; i++) { const v = r[i]; if (typeof v === 'string' && v.length > 250) r[i] = v.slice(0, 250); }
+      return { name: n, rows };
+    });
+    self.postMessage({ id, sheets });
+  } catch (err) { self.postMessage({ id, error: String(err && err.message || err) }); }
+};`;
+let workerURL = null, workerOK = true;
+try { workerURL = URL.createObjectURL(new Blob([WORKER_SRC], { type:'text/javascript' })); } catch { workerOK = false; }
+const parseCache = new WeakMap();   // File → Promise<sheets[]>
+let parseActive = 0; const parseQueue = [];
+const MAX_WORKERS = Math.max(2, Math.min(4, (navigator.hardwareConcurrency || 4) - 1));
+function fileBuffer(file){
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = () => rej(new Error('فشل قراءة ' + file.name)); r.readAsArrayBuffer(file); });
+}
+function parseMainThread(buf, all){
+  const o = Object.assign({}, READ_OPTS); if (!all) o.sheets = 0;
+  const wb = XLSX.read(new Uint8Array(buf), o);
+  return (all ? wb.SheetNames : [wb.SheetNames[0]]).map(n => ({ name:n, rows: XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, defval:'', raw:true, blankrows:false }) }));
+}
+function parseInWorker(buf, all){
   return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = e => {
-      try {
-        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array', raw:true });
-        if (sheetName === '*') {
-          res(wb.SheetNames.map(n => ({ name:n, rows: XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, defval:'' }) })));
-        } else {
-          res(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:'' }));
-        }
-      } catch (err) { rej(new Error(file.name + ': ' + err.message)); }
-    };
-    r.onerror = () => rej(new Error('فشل قراءة ' + file.name));
-    r.readAsArrayBuffer(file);
+    let w;
+    try { w = new Worker(workerURL); } catch (err) { rej(err); return; }
+    w.onmessage = e => { w.terminate(); e.data.error ? rej(new Error(e.data.error)) : res(e.data.sheets); };
+    w.onerror = err => { w.terminate(); rej(new Error(err.message || 'worker error')); };
+    w.postMessage({ id: 1, buf, all, opts: READ_OPTS }, [buf]);
   });
+}
+function runQueued(task){
+  return new Promise((res, rej) => {
+    const go = () => { parseActive++; task().then(res, rej).finally(() => { parseActive--; const nx = parseQueue.shift(); if (nx) nx(); }); };
+    parseActive < MAX_WORKERS ? go() : parseQueue.push(go);
+  });
+}
+function parseFile(file, all){
+  const key = all ? 'all' : 'first';
+  let entry = parseCache.get(file); if (!entry){ entry = {}; parseCache.set(file, entry); }
+  if (entry[key]) return entry[key];
+  entry[key] = runQueued(async () => {
+    const buf = await fileBuffer(file);
+    if (workerOK){
+      try { return await parseInWorker(buf.slice(0), all); }
+      catch (err) { console.warn('Worker fallback:', err); workerOK = false; }
+    }
+    return parseMainThread(buf, all);
+  }).catch(err => { entry[key] = null; throw new Error(file.name + ': ' + err.message); });
+  return entry[key];
+}
+async function readRows(file, sheetName){
+  const sheets = await parseFile(file, sheetName === '*');
+  return sheetName === '*' ? sheets : sheets[0].rows;
 }
 
 // يبحث عن صف عناوين يحتوي الأعمدة الإلزامية (مطابقة دقيقة)
@@ -259,10 +309,10 @@ const SPEC = {
     C: { id:{a:['offer sku'],r:1}, name:{a:['product name (ar)','product name (en)']}, stock:{a:['total qty كارفور','total qty']}, status:{a:['status كارفور','status']} },
     S: { id:{a:['sku شي إن','shein-sku','shein sku','sku'],r:1}, name:{a:['اسم المنتج']}, stock:{a:['المخزون الحالي شي إن','المخزون الحالي']}, status:{a:['حالة الإعلان'],p:['حالة الإعلان']} }
   },
-  stockT: { id:{a:['barcode'],r:1}, stock:{a:['stock'],r:1}, name:{a:['product name']}, status:{a:['status']}, desc:{a:['status description']}, price:{a:['original (list) price']}, sale:{a:['trendyol sale price (including vat)','trendyol sale price (vat included)']} },
+  stockT: { id:{a:['barcode'],r:1}, stock:{a:['stock'],r:1}, name:{a:['product name']}, status:{a:['status']}, desc:{a:['status description']}, price:{a:['original (list) price']}, sale:{a:['trendyol sale price (including vat)','trendyol sale price (vat included)']}, alt1:{a:['supplier stock code']}, brand:{a:['brand']} },
   stockC: { id:{a:['offer sku'],r:1}, stock:{a:['total qty','quantity'],r:1}, price:{a:['price (sar)','price']}, status:{a:['status']}, name:{a:['product name (ar)','product name (en)']},
             disc:{a:['discount price (sar)','discount price']}, ds:{a:['discount start date']}, de:{a:['discount end date']} },
-  stockS: { id:{a:['sku'],r:1}, stock:{a:['المخزون الحالي'],r:1}, status:{a:[],p:['حالة الإعلان']}, name:{a:['اسم المنتج الافتراضي(en)']} },
+  stockS: { id:{a:['sku'],r:1}, stock:{a:['المخزون الحالي'],r:1}, status:{a:[],p:['حالة الإعلان']}, name:{a:['اسم المنتج الافتراضي(en)']}, alt1:{a:['بائعsku']}, alt2:{a:['رقم الصنف']}, skc:{a:['skc']}, spu:{a:['spu']} },
   ordT: { id:{a:['barcode'],r:1}, qty:{a:['quantity'],r:1}, status:{a:['order status']}, chk:{a:['package no','order number'],r:1}, alt:{a:['stock code']}, date:{a:['order date']} },
   ordC: { id:{a:['offer sku'],r:1}, qty:{a:['quantity'],r:1}, status:{a:['order status']}, chk:{a:['consignment id','order total'],r:1}, alt:{a:['ean']}, date:{a:['creation date']} },
   ordS: { id:{a:['shein-sku'],r:1}, qty:{a:['عدد الأصناف المباعة']}, status:{a:['حالة الطلب']}, alt:{a:['رمز المنتج لدى البائع','رقم الصنف']}, date:{a:['وقت إنشاء الطلب']} },
@@ -339,7 +389,16 @@ async function readAll(){
   const btn = document.getElementById('btn-read'); const oldTxt = btn.textContent; btn.textContent = '⏳ جاري القراءة...';
   const W = [];
   try {
+    // ✅ قراءة كل الملفات بالتوازي مع عدّاد تقدم
+    const jobs = [];
+    Object.entries(S.files).forEach(([slot, files]) => files.forEach(f => jobs.push(parseFile(f, slot === 'master'))));
+    let done = 0; const t0 = performance.now();
+    btn.textContent = `⏳ قراءة الملفات 0/${jobs.length}`;
+    await Promise.all(jobs.map(p => p.then(() => { done++; btn.textContent = `⏳ قراءة الملفات ${done}/${jobs.length}`; })));
+    btn.textContent = '⏳ جاري الحساب...';
+    await new Promise(r => setTimeout(r, 0));
     S.data = await buildData(W);
+    S.data.readMs = Math.round(performance.now() - t0);
     showReadSummary(W);
     renderStatusGrid();
     ['card-settings','card-results','card-export'].forEach(id => document.getElementById(id).classList.remove('hidden'));
@@ -371,17 +430,20 @@ async function buildData(W){
   // ---- الماستر: كل شيت = منصة (من اسم الشيت أو من أعمدته)
   const listings = []; const byKey = new Map();
   const masterChannels = new Set(); let masterDup = 0;
+  const masterSheets = [];   // لتصدير الماستر المحدّث بنفس الشكل
   for (const f of S.files.master){
     const sheets = await readRows(f, '*');
     for (const sh of sheets){
-      if (/مراجعة|ملخص|summary|review|instruction|تعليمات/i.test(sh.name)) continue; // شيتات مساعدة
+      if (/مراجعة|ملخص|summary|review|instruction|تعليمات/i.test(sh.name)){ masterSheets.push({ file:f.name, name:sh.name, rows:sh.rows, ch:null }); continue; } // شيتات مساعدة
       let ch = chFromName(sh.name), d = null;
       const tryCh = ch ? [ch] : (chFromName(f.name) ? [chFromName(f.name)] : ['C','S','T']);
       for (const c of tryCh){
         d = detect(sh.rows, Object.assign({}, SPEC.masterId[c], SPEC.masterCommon));
         if (d){ ch = c; break; }
       }
-      if (!d){ if (sh.rows.length > 1) W.push(`الماستر ${f.name} / شيت «${sh.name}»: لم يُتعرف على المنصة أو عمود المعرّف — تم تجاهله`); continue; }
+      if (!d){ if (sh.rows.length > 1) W.push(`الماستر ${f.name} / شيت «${sh.name}»: لم يُتعرف على المنصة أو عمود المعرّف — تم تجاهله`); masterSheets.push({ file:f.name, name:sh.name, rows:sh.rows, ch:null }); continue; }
+      const msh = { file:f.name, name:sh.name, rows:sh.rows, ch, d };
+      masterSheets.push(msh);
       for (const r of sh.rows.slice(d.headerRow + 1)){
         const id = clean(cellOf(r, d, 'id')); if (!id) continue;
         const key = ch + '|' + norm(id);
@@ -430,6 +492,10 @@ async function buildData(W){
         let L = byKey.get(key);
         if (!L){
           L = { ch, id, nid: norm(id), inMaster:false, onChannel:true, ref:'', comps:[], hold:false, amRaw:'', managerStop:false, supplier:'', conf:'', name:'', status:'', cur:0, price:0, sale:0 };
+          // ✅ ربط تلقائي مقترح للعرض الجديد (للماستر المحدّث): المعرّف نفسه، أو بدون SA/SSA/SB، أو Supplier Stock Code / بائعSKU / رقم الصنف
+          const cands = [id, id.replace(/^(SSA|SA|SB)(?=\d)/i, ''), clean(cellOf(r, d, 'alt1')), clean(cellOf(r, d, 'alt2'))];
+          for (const c of cands){ if (c && !isPackage(c) && odoo.has(norm(c))){ L.autoRef = c; L.autoSrc = c === id ? 'المعرّف = باركود أودو' : (c === cands[1] ? 'المعرّف بدون البادئة' : 'كود البائع في ملف المنصة'); break; } }
+          L.brand = clean(cellOf(r, d, 'brand')); L.skc = clean(cellOf(r, d, 'skc')); L.spu = clean(cellOf(r, d, 'spu'));
           listings.push(L); byKey.set(key, L);
         }
         L.cur = toInt(cellOf(r, d, 'stock'));
@@ -506,7 +572,7 @@ async function buildData(W){
 
   if (CH.some(ch => !stockLoaded[ch] && masterChannels.has(ch)))
     W.push('المنصات المقفولة لا تأخذ نصيباً ولا يُصدَّر لها ملف. طلباتها المرفوعة تُخصم من الرصيد لأنها طلبات حقيقية.');
-  return { odoo, listings, pend, pendRes, hist, histRes, cutoff, stockLoaded, stockOnlyOdoo };
+  return { odoo, listings, pend, pendRes, hist, histRes, cutoff, stockLoaded, stockOnlyOdoo, masterSheets, masterFileName: (S.files.master[0] || {}).name || 'Master.xlsx' };
 }
 
 function showReadSummary(W){
@@ -517,6 +583,7 @@ function showReadSummary(W){
   document.getElementById('read-summary').innerHTML =
     `📖 أودو: ${D.odoo.size.toLocaleString()} صنف | ${parts.join(' | ')}<br>` +
     `الطلبات المخصومة: ${D.pendRes.lines ? D.pendRes.lines + ' سطر' : 'لا يوجد'}${D.pendRes.skipped ? ` (تجاهل ${D.pendRes.skipped} ملغي/مرتجع)` : ''} | ` +
+    `⏱️ القراءة ${(D.readMs/1000).toFixed(1)} ثانية | عروض جديدة مش في الماستر: ${D.listings.filter(l=>!l.inMaster).length.toLocaleString()} (اتربط منها تلقائياً ${D.listings.filter(l=>!l.inMaster&&l.autoRef).length.toLocaleString()} — هتلاقيهم في «الماستر المحدّث»)<br>` +
     `المبيعات التاريخية: ${D.hist.size ? `${D.hist.size.toLocaleString()} صنف من ${D.cutoff} (${D.histRes.lines.toLocaleString()} سطر${D.histRes.old ? `، تجاهل ${D.histRes.old.toLocaleString()} أقدم` : ''})` : 'لا يوجد — التقسيم بالتساوي'}`;
   const rv = D.listings.filter(l => D.stockLoaded[l.ch] && l.inMaster && l.onChannel && isReview(l) && l.cur > 0);
   if (rv.length) W.push(`${rv.length} عرض ربطه غير مؤكد ومعروض عليه ${rv.reduce((a, l) => a + l.cur, 0).toLocaleString()} وحدة — لا يُلمس ولا يُحجز له رصيد. أكّد ربطه في الماستر لتشمله الأداة (عرض «غير مؤكد الربط»)`);
@@ -903,6 +970,62 @@ function exportNoOdoo(){
   const ws = XLSX.utils.json_to_sheet(listingRows(ls)); textCols(ws, [1, 2], 1);
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'غير موجود في أودو');
   XLSX.writeFile(wb, `غير_موجود_في_أودو_${today()}.xlsx`);
+}
+
+// ✅ الماستر المحدّث: نفس الشيتات والأعمدة، مع تحديث الحالة والمخزون من ملفات المنصات، وإضافة العروض الجديدة في آخر كل شيت
+function exportMaster(){
+  const D = S.data; if (!D) return;
+  const wb = XLSX.utils.book_new(); let added = 0, refreshed = 0;
+  const findCol = (hdr, names) => { const l = hdr.map(lower); for (const nm of names){ const i = l.indexOf(nm); if (i >= 0) return i; } return -1; };
+  const doneCh = new Set();
+  for (const sh of D.masterSheets){
+    const rows = sh.rows.map(r => r.slice());
+    if (!sh.ch){ XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), sh.name.slice(0, 31)); continue; }
+    const hr = sh.d.headerRow; const hdr = rows[hr] = (rows[hr] || []).slice();
+    const col = (k, names, addName) => {
+      let i = sh.d.map[k] !== undefined ? sh.d.map[k] : findCol(hdr, names);
+      if (i < 0 && addName){ i = hdr.length; hdr.push(addName); }
+      return i;
+    };
+    const cId = sh.d.map.id, cOdoo = col('odoo', ['barcode odoo'], 'Barcode odoo'), cPcs = col('pieces', ['عدد القطع'], 'عدد القطع');
+    const cName = col('name', []), cStatus = col('status', []), cStock = col('stock', []);
+    const cConf = sh.ch === 'T' ? -1 : col('conf', ['الثقة'], 'الثقة');
+    const cSrc = findCol(hdr, ['مصدر الربط']), cNote = findCol(hdr, ['ملاحظة']);
+    const cBrand = findCol(hdr, ['brand']), cSkc = findCol(hdr, ['skc']), cSpu = findCol(hdr, ['spu']);
+    const cNew = findCol(hdr, ['is new']);
+    // تحديث الحالة والمخزون للعروض الموجودة
+    if (D.stockLoaded[sh.ch]){
+      const idx = new Map(); D.listings.forEach(L => { if (L.ch === sh.ch && L.inMaster) idx.set(L.ch + '|' + L.nid, L); });
+      for (let i = hr + 1; i < rows.length; i++){
+        const id = clean(rows[i][cId]); if (!id) continue;
+        const L = idx.get(sh.ch + '|' + norm(id)); if (!L || !L.onChannel) continue;
+        while (rows[i].length < hdr.length) rows[i].push('');
+        if (cStatus >= 0) rows[i][cStatus] = L.status;
+        if (cStock >= 0) rows[i][cStock] = L.cur;
+        refreshed++;
+      }
+    }
+    // إضافة العروض الجديدة مرة واحدة لكل منصة (في أول شيت ليها)
+    if (!doneCh.has(sh.ch)){
+      doneCh.add(sh.ch);
+      D.listings.filter(L => L.ch === sh.ch && !L.inMaster).forEach(L => {
+        const r = new Array(hdr.length).fill('');
+        r[cId] = L.id; r[cOdoo] = L.autoRef || ''; r[cPcs] = 1;
+        if (cName >= 0) r[cName] = L.name; if (cStatus >= 0) r[cStatus] = L.status; if (cStock >= 0) r[cStock] = L.cur;
+        if (cConf >= 0) r[cConf] = L.autoRef ? 'مؤكد' : 'غير مطابق';
+        if (cSrc >= 0) r[cSrc] = L.autoSrc || '—';
+        if (cNote >= 0) r[cNote] = 'أُضيف تلقائياً من ملف المنصة ' + today() + (L.autoRef ? ' — راجع عدد القطع' : ' — غير مربوط بأودو');
+        if (cBrand >= 0) r[cBrand] = L.brand || ''; if (cSkc >= 0) r[cSkc] = L.skc || ''; if (cSpu >= 0) r[cSpu] = L.spu || '';
+        if (cNew >= 0) r[cNew] = 'Yes';
+        rows.push(r); added++;
+      });
+    }
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    textCols(ws, [cId, cOdoo].filter(i => i >= 0), hr + 1);
+    XLSX.utils.book_append_sheet(wb, ws, sh.name.slice(0, 31));
+  }
+  XLSX.writeFile(wb, `Master_Updated_${today()}.xlsx`);
+  alert(`الماستر المحدّث: اتحدّث ${refreshed.toLocaleString()} عرض (الحالة والمخزون) واتضاف ${added.toLocaleString()} عرض جديد.`);
 }
 
 function downloadMasterTemplate(){
