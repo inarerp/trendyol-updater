@@ -428,7 +428,10 @@ async function buildData(W){
   if (stockOnlyOdoo) W.push('ملف أودو فيه الأصناف اللي ليها رصيد بس — أي صنف مش فيه هيتصفّر ويتكتب «رصيد صفر أو غير معرّف». لتقرير «غير موجود في أودو» دقيق ارفع ملف أودو الكامل.');
 
   // ---- الماستر: كل شيت = منصة (من اسم الشيت أو من أعمدته)
-  const listings = []; const byKey = new Map();
+  // ✅ المطابقة بالمعرّف كما هو أولاً (0101010 و 101010 ممكن يكونوا عرضين مختلفين على المنصة)،
+  // وبعدها بدون الأصفار البادئة كاحتياطي فقط
+  const listings = []; const byKey = new Map(); const byNorm = new Map();
+  const addNorm = (ch, L) => { const k = ch + '|' + norm(L.id); const a = byNorm.get(k) || []; a.push(L); byNorm.set(k, a); };
   const masterChannels = new Set(); let masterDup = 0;
   const masterSheets = [];   // لتصدير الماستر المحدّث بنفس الشكل
   for (const f of S.files.master){
@@ -442,11 +445,12 @@ async function buildData(W){
         if (d){ ch = c; break; }
       }
       if (!d){ if (sh.rows.length > 1) W.push(`الماستر ${f.name} / شيت «${sh.name}»: لم يُتعرف على المنصة أو عمود المعرّف — تم تجاهله`); masterSheets.push({ file:f.name, name:sh.name, rows:sh.rows, ch:null }); continue; }
-      const msh = { file:f.name, name:sh.name, rows:sh.rows, ch, d };
+      const msh = { file:f.name, name:sh.name, rows:sh.rows, ch, d, lAt: new Map() };
       masterSheets.push(msh);
-      for (const r of sh.rows.slice(d.headerRow + 1)){
+      for (let ri = d.headerRow + 1; ri < sh.rows.length; ri++){
+        const r = sh.rows[ri];
         const id = clean(cellOf(r, d, 'id')); if (!id) continue;
-        const key = ch + '|' + norm(id);
+        const key = ch + '|' + id.toUpperCase();
         if (byKey.has(key)){ masterDup++; continue; }
         const odooRef = clean(cellOf(r, d, 'odoo'));
         const L = {
@@ -458,7 +462,7 @@ async function buildData(W){
           cur: toInt(cellOf(r, d, 'stock')), price: toNum(cellOf(r, d, 'price')), sale: toNum(cellOf(r, d, 'sale'))
         };
         L.managerStop = isAmStop(L.amRaw);
-        listings.push(L); byKey.set(key, L); masterChannels.add(ch);
+        listings.push(L); byKey.set(key, L); addNorm(ch, L); msh.lAt.set(ri, L); masterChannels.add(ch);
       }
     }
   }
@@ -478,10 +482,11 @@ async function buildData(W){
       const d = detect(rows, SPEC['stock' + ch]);
       if (!d) throw new Error(`ملف مخزون ${CH_NAME[ch]} ${f.name}: الأعمدة غير متوقعة — تأكد أنه ملف المخزون الصحيح للمنصة`);
       stockLoaded[ch] = true;
-      const seen = new Set();
-      for (const r of rows.slice(d.headerRow + 1)){
+      const body = rows.slice(d.headerRow + 1);
+      const fileIds = new Set(body.map(r => clean(cellOf(r, d, 'id')).toUpperCase()).filter(Boolean));
+      for (const r of body){
         const id = clean(cellOf(r, d, 'id')); if (!id) continue;
-        const key = ch + '|' + norm(id); seen.add(key);
+        const key = ch + '|' + id.toUpperCase();
         let st = clean(cellOf(r, d, 'status'));
         // ✅ عمود Status في ملف ترينديول فيه الحالة المختصرة؛ Status Description شرح طويل يُستخدم فقط لو Status فاضي أو عام
         if (ch === 'T'){
@@ -491,13 +496,19 @@ async function buildData(W){
         }
         let L = byKey.get(key);
         if (!L){
+          // احتياطي: نفس المعرّف بس الأصفار البادئة مختلفة، ومفيش عرض بالشكل ده بالظبط في ملف المنصة
+          const cand = (byNorm.get(ch + '|' + norm(id)) || []).filter(x => x.inMaster && !x._seen && !fileIds.has(x.id.toUpperCase()));
+          if (cand.length === 1){ L = cand[0]; L.idFixed = L.id; L.id = id; byKey.set(key, L); }
+        }
+        if (!L){
           L = { ch, id, nid: norm(id), inMaster:false, onChannel:true, ref:'', comps:[], hold:false, amRaw:'', managerStop:false, supplier:'', conf:'', name:'', status:'', cur:0, price:0, sale:0 };
           // ✅ ربط تلقائي مقترح للعرض الجديد (للماستر المحدّث): المعرّف نفسه، أو بدون SA/SSA/SB، أو Supplier Stock Code / بائعSKU / رقم الصنف
           const cands = [id, id.replace(/^(SSA|SA|SB)(?=\d)/i, ''), clean(cellOf(r, d, 'alt1')), clean(cellOf(r, d, 'alt2'))];
           for (const c of cands){ if (c && !isPackage(c) && odoo.has(norm(c))){ L.autoRef = c; L.autoSrc = c === id ? 'المعرّف = باركود أودو' : (c === cands[1] ? 'المعرّف بدون البادئة' : 'كود البائع في ملف المنصة'); break; } }
           L.brand = clean(cellOf(r, d, 'brand')); L.skc = clean(cellOf(r, d, 'skc')); L.spu = clean(cellOf(r, d, 'spu'));
-          listings.push(L); byKey.set(key, L);
+          listings.push(L); byKey.set(key, L); addNorm(ch, L);
         }
+        L._seen = true;
         L.cur = toInt(cellOf(r, d, 'stock'));
         L.status = st;
         if (d.map.price !== undefined) L.price = toNum(cellOf(r, d, 'price'));
@@ -507,15 +518,18 @@ async function buildData(W){
         if (ch === 'C'){ L.disc = cellOf(r, d, 'disc'); L.ds = cellOf(r, d, 'ds'); L.de = cellOf(r, d, 'de'); }
       }
       // عرض في الماستر غير موجود في ملف المنصة = غير مرفوع عليها
-      listings.forEach(L => { if (L.ch === ch && L.inMaster && !seen.has(ch + '|' + L.nid)) L.onChannel = false; });
+      listings.forEach(L => { if (L.ch === ch && L.inMaster && !L._seen) L.onChannel = false; });
+      const fixed = listings.filter(L => L.ch === ch && L.idFixed).length;
+      if (fixed) W.push(`${CH_NAME[ch]}: ${fixed} عرض معرّفه في الماستر ناقصه/زايده صفر في الأول — اتطابق مع ملف المنصة واتصحح في «الماستر المحدّث»`);
     }
   }
 
   // ---- ملفات الطلبات والمبيعات
   // ✅ [H2] لو العرض غير مربوط في الماستر: يُجرب المعرّف البديل من الطلب ثم المعرّف نفسه كباركود أودو
   const lineToBarcodes = (ch, id, qty, target, alt) => {
-    const L = byKey.get(ch + '|' + norm(id));
-    if (L && L.comps.length && L.conf !== 'راجِع'){ L.comps.forEach(c => target(c.bc, qty * c.qty, ch)); return true; }
+    let L = byKey.get(ch + '|' + clean(id).toUpperCase());
+    if (!L){ const a = byNorm.get(ch + '|' + norm(id)) || []; if (a.length === 1) L = a[0]; }
+    if (L && L.comps.length && !isReview(L)){ L.comps.forEach(c => target(c.bc, qty * c.qty, ch)); return true; }
     for (const k of [alt, id]) if (k && !isPackage(k) && odoo.has(norm(k))){ target(norm(k), qty, ch); return true; }
     return false;
   };
@@ -975,7 +989,7 @@ function exportNoOdoo(){
 // ✅ الماستر المحدّث: نفس الشيتات والأعمدة، مع تحديث الحالة والمخزون من ملفات المنصات، وإضافة العروض الجديدة في آخر كل شيت
 function exportMaster(){
   const D = S.data; if (!D) return;
-  const wb = XLSX.utils.book_new(); let added = 0, refreshed = 0;
+  const wb = XLSX.utils.book_new(); let added = 0, refreshed = 0, idFixedCount = 0;
   const findCol = (hdr, names) => { const l = hdr.map(lower); for (const nm of names){ const i = l.indexOf(nm); if (i >= 0) return i; } return -1; };
   const doneCh = new Set();
   for (const sh of D.masterSheets){
@@ -995,11 +1009,10 @@ function exportMaster(){
     const cNew = findCol(hdr, ['is new']);
     // تحديث الحالة والمخزون للعروض الموجودة
     if (D.stockLoaded[sh.ch]){
-      const idx = new Map(); D.listings.forEach(L => { if (L.ch === sh.ch && L.inMaster) idx.set(L.ch + '|' + L.nid, L); });
       for (let i = hr + 1; i < rows.length; i++){
-        const id = clean(rows[i][cId]); if (!id) continue;
-        const L = idx.get(sh.ch + '|' + norm(id)); if (!L || !L.onChannel) continue;
+        const L = sh.lAt.get(i); if (!L || !L.onChannel) continue;
         while (rows[i].length < hdr.length) rows[i].push('');
+        if (L.idFixed){ rows[i][cId] = L.id; idFixedCount++; }
         if (cStatus >= 0) rows[i][cStatus] = L.status;
         if (cStock >= 0) rows[i][cStock] = L.cur;
         refreshed++;
@@ -1025,7 +1038,7 @@ function exportMaster(){
     XLSX.utils.book_append_sheet(wb, ws, sh.name.slice(0, 31));
   }
   XLSX.writeFile(wb, `Master_Updated_${today()}.xlsx`);
-  alert(`الماستر المحدّث: اتحدّث ${refreshed.toLocaleString()} عرض (الحالة والمخزون) واتضاف ${added.toLocaleString()} عرض جديد.`);
+  alert(`الماستر المحدّث: اتحدّث ${refreshed.toLocaleString()} عرض (الحالة والمخزون)، واتصحح معرّف ${idFixedCount.toLocaleString()} عرض (الأصفار البادئة)، واتضاف ${added.toLocaleString()} عرض جديد.`);
 }
 
 function downloadMasterTemplate(){
